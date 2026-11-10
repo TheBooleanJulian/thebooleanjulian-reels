@@ -17,6 +17,7 @@
 @font-face { font-family: "IBM Plex Sans"; font-weight: 600; src: url(/fonts/IBMPlexSans-SemiBold.ttf) format("truetype"); }
 @font-face { font-family: "IBM Plex Sans"; font-weight: 700; src: url(/fonts/IBMPlexSans-Bold.ttf) format("truetype"); }
 @font-face { font-family: "JetBrains Mono"; font-weight: 100 800; src: url(/fonts/JetBrainsMono-VF.ttf) format("truetype"); }
+@font-face { font-family: "Share Tech Mono"; font-weight: 400; src: url(/fonts/ShareTechMono-Regular.ttf) format("truetype"); }  /* text overlays use it */
 
 /* ---------- Julian Unified UI tokens (thebooleanjulian-branding/dist/tokens.css) ---------- */
 :root {
@@ -215,6 +216,70 @@ textarea.input { height: auto; padding: var(--space-2) var(--space-3); resize: v
 .right { margin-left: auto; }
 details > summary { cursor: pointer; }
 #flash:empty { display: none; }
+/* ---------- editor: preview stage, transport, timeline, inspector ---------- */
+.page--wide { max-width: 1800px; }
+.editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: var(--space-4); align-items: start; }
+@media (max-width: 1100px) { .editor { grid-template-columns: 1fr; } }
+.stage-wrap { width: 100%; display: flex; justify-content: center; }
+.stage { position: relative; overflow: hidden; background: #000; border-radius: var(--radius-md); box-shadow: 0 0 0 1px var(--line); }
+.layer { position: absolute; inset: 0; }
+#lay-media { z-index: 1; }
+.vid { position: absolute; max-width: none; transform-origin: 50% 50%; }
+.broll { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 3; }
+.veil { z-index: 4; opacity: 0; pointer-events: none; background: #000; }
+#lay-gfx { z-index: 5; pointer-events: none; }
+#lay-text { z-index: 6; }
+.endcard { z-index: 7; display: none; width: 100%; height: 100%; object-fit: cover; }
+.guides { z-index: 8; pointer-events: none; }
+.gfx { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cap { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; line-height: 1.15; }
+.txt { position: absolute; white-space: pre; text-align: center; cursor: move; line-height: 1.15; user-select: none; touch-action: none; }
+.txt--sel { outline: 1px dashed var(--cyan-ink); outline-offset: 4px; }
+.safe { position: absolute; background: repeating-linear-gradient(45deg, rgba(255, 43, 214, 0.16) 0 6px, transparent 6px 12px); border: 1px dashed rgba(255, 107, 226, 0.6); }
+.safe span, .safe-line span { position: absolute; left: 4px; top: 2px; font: 500 10px/14px var(--font-mono); color: #fff; text-shadow: 0 0 3px #000; }
+.safe-line { position: absolute; border: 1px dashed rgba(25, 230, 255, 0.7); }
+.gridline { position: absolute; background: rgba(255, 255, 255, 0.35); }
+.gridline.h { left: 0; right: 0; height: 1px; }
+.gridline.v { top: 0; bottom: 0; width: 1px; }
+.gridline.mid { background: rgba(0, 229, 255, 0.9); }
+.transport { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.side { max-height: calc(56vh + 90px); overflow: auto; }
+.side > * { flex-shrink: 0; }
+.insp .fields { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: var(--space-3); }
+.slider { gap: 2px; }
+.range { width: 100%; accent-color: var(--cyan); }
+.panel.focus { box-shadow: 0 0 0 1px var(--cyan-ink); }
+.tl-panel { padding: var(--space-2) 0 0; }
+.tl-bar { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: 0 var(--space-3) var(--space-2); border-bottom: 1px solid var(--line); }
+.sep-v { width: 1px; height: 20px; background: var(--line); }
+.tl-body { display: flex; }
+.tl-labels { flex: none; width: 90px; border-right: 1px solid var(--line); }
+.tl-lab { height: 40px; display: flex; align-items: center; padding: 0 var(--space-3); font: 600 11px/14px var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-muted); border-bottom: 1px solid var(--line); }
+.tl-lab.ruler-lab { height: 25px; }
+.tl-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; position: relative; touch-action: none; }
+.tl-inner { position: relative; }
+.tl-ruler { position: relative; height: 24px; border-bottom: 1px solid var(--line-strong); cursor: pointer; }
+.tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
+.tick span { position: absolute; left: 4px; top: 4px; font: 500 10.5px/14px var(--font-mono); color: var(--ink-faint); white-space: nowrap; }
+.tl-track { position: relative; height: 40px; border-bottom: 1px solid var(--line); }
+.blk { position: absolute; top: 5px; height: 30px; border-radius: var(--radius-sm); border: 1px solid var(--line-strong); background: var(--surface-raised); overflow: hidden; cursor: grab; touch-action: none; }
+.blk::before, .blk::after { content: ""; position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.blk::before { left: 0; }
+.blk::after { right: 0; }
+.blk:hover { border-color: var(--cyan-ink); }
+.blk.sel { border-color: var(--cyan-ink); box-shadow: inset 0 0 0 1px var(--cyan-ink); background: var(--surface-overlay); }
+.blk.dragging { opacity: 0.75; z-index: 5; cursor: grabbing; }
+.blk.clip.tight { background-image: linear-gradient(0deg, var(--cyan-tint), var(--cyan-tint)); }
+.blk-label { position: absolute; left: 8px; right: 6px; top: 6px; font: 500 11px/16px var(--font-mono); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.blk.endblk, .blk.music { cursor: default; }
+.blk.endblk { background: repeating-linear-gradient(45deg, var(--surface-raised) 0 6px, var(--surface) 6px 12px); }
+.blk.music { background: var(--surface); border-color: var(--line); }
+.blk.endblk::before, .blk.endblk::after, .blk.music::before, .blk.music::after { display: none; }
+.beat { position: absolute; top: 4px; bottom: 4px; width: 1px; background: var(--ink-faint); pointer-events: none; }
+.tr { position: absolute; top: 0; width: 15px; height: 13px; margin-left: -7px;   /* top strip: block edges stay grabbable */ border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink-muted); font: 600 9px/1 var(--font-mono); padding: 0; cursor: pointer; z-index: 3; }
+.tr:hover { border-color: var(--cyan-ink); color: var(--cyan-ink); }
+.tr.on { background: var(--cyan); border-color: var(--cyan-ink); color: var(--on-accent); }
+.tl-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--magenta); pointer-events: none; z-index: 6; }
 
 /* ---------- transcript ---------- */
 .ts-bar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; padding: var(--space-2); margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) var(--space-3); background: var(--surface); border-bottom: 1px solid var(--line); }
@@ -326,6 +391,8 @@ function flash(kind, title, body) {
 }
 function flashSlot() { const s = h('div', { id: 'flash' }); if (flashEl) s.append(alertBox(flashEl.kind, flashEl.title, flashEl.body, () => { flashEl = null; s.replaceChildren(); })); return s; }
 function fail(e) { flash('danger', 'Something went wrong', String(e.message || e)); }
+window.addEventListener('error', e => /ResizeObserver loop/.test(e.message || '') ? null : flash('danger', 'Page error', `${e.message} (line ${e.lineno}). Reload the page; if it repeats, note what you clicked.`));
+window.addEventListener('unhandledrejection', e => flash('danger', 'Page error', String((e.reason && e.reason.message) || e.reason)));
 
 function field(label, control, help) { return h('label', { class: 'field' }, h('span', { class: 'label' }, label), control, help ? h('span', { class: 'field__help' }, help) : null); }
 function textInput(value, oninput, attrs = {}) { return h('input', { class: 'input' + (attrs.mono ? ' input--mono' : ''), value: value ?? '', oninput: e => oninput(e.target.value), ...attrs, mono: null }); }
@@ -578,78 +645,905 @@ function projectTable(list, view) {
 }
 
 /* ---- editing the preset */
-function pushUndo() { undo.push(JSON.stringify(S.P.preset)); if (undo.length > 60) undo.shift(); }
-function mutate(fn, rerender = false) {
-  pushUndo(); fn(S.P.preset);
+let lastUndo = 0;
+function pushUndo(snapshot) { undo.push(snapshot || JSON.stringify(S.P.preset)); if (undo.length > 80) undo.shift(); lastUndo = Date.now(); }
+function mutate(fn, opts = {}) {
+  /* typing and slider drags (input events) coalesce into one undo step; every other change is its own step */
+  const coalesce = opts.coalesce ?? !!(window.event && window.event.type === 'input');
+  if (!coalesce || Date.now() - lastUndo > 700) pushUndo();
+  fn(S.P.preset);
   scheduleSave();
-  if (rerender) render(); else { markWords(); updateStats(); }
+  if (opts.render) render(); else ED.refresh(opts);
 }
 function scheduleSave() {
   clearTimeout(saveTimer); saving = true; setSaveState('Saving');
   saveTimer = setTimeout(async () => {
     try {
       const r = await api('/api/save', { name: S.P.name, preset: S.P.preset });
-      S.P.plan = r.plan; saving = false; setSaveState('Saved ' + new Date().toTimeString().slice(0, 5));
-      markWords(); updateStats();
+      if (r.plan) S.P.plan = r.plan;
+      saving = false; setSaveState('Saved ' + new Date().toTimeString().slice(0, 5));
+      ED.refresh({ inspector: false, fromSave: true });
+      refreshGraphics();
     } catch (e) { saving = false; setSaveState('Not saved'); fail(e); }
   }, 450);
 }
 function setSaveState(t) { const el = $('#save-state'); if (el) el.textContent = t; }
-function doUndo() { if (!undo.length) return; S.P.preset = JSON.parse(undo.pop()); scheduleSave(); render(); }
+function doUndo() { if (!undo.length) return; S.P.preset = JSON.parse(undo.pop()); ED.sel = null; scheduleSave(); ED.refresh(); }
 
 function longEditor(fmt, meta) {
   const P = S.P, plan = P.plan || {};
-  const tabs = [['edit', 'Edit'], ['graphics', 'Graphics'], ['output', 'Output'], ['render', 'Render'], ['notes', 'Notes']];
+  const tabs = [['edit', 'Edit'], ['graphics', 'Graphics'], ['export', 'Export'], ['notes', 'Notes']];
   if (!tabs.some(t => t[0] === S.tab)) S.tab = 'edit';
   const head = h('div', { class: 'page__head' },
-    h('div', { class: 'col' },
-      h('div', { class: 'row' }, h('h1', { class: 'display-lg' }, P.name), h('span', { class: 'badge badge--cyan' }, fmt)),
+    h('div', { class: 'col', style: 'gap:4px' },
+      h('div', { class: 'row' }, h('h1', { class: 'display-lg' }, P.name), h('span', { class: 'badge badge--cyan' }, fmt),
+        h('span', { class: 'badge', id: 'mode-badge' }, plan.manual ? 'Manual timeline' : 'Auto cut')),
       h('span', { class: 'mono-sm muted' }, P.video)),
     h('div', { class: 'row' }, h('span', { class: 'mono-sm muted', id: 'save-state' }, ''),
       h('button', { class: 'btn btn--ghost', type: 'button', onclick: doUndo, title: 'Undo (Ctrl+Z)' }, 'Undo ', h('span', { class: 'kbd' }, 'Ctrl+Z')),
-      h('button', { class: 'btn', type: 'button', onclick: () => { S.P = null; store.set('project-' + fmt, null); render(); } }, 'Close')));
+      h('button', { class: 'btn', type: 'button', onclick: () => { pause(); S.P = null; store.set('project-' + fmt, null); render(); } }, 'Close')));
   const warn = (plan.error ? [plan.error.join(' ')] : (plan.warnings || []));
-  const body = { edit: tabEdit, graphics: tabGraphics, output: tabOutput, render: tabRender, notes: tabNotes }[S.tab](fmt);
-  return h('div', { class: 'page' }, head, flashSlot(),
+  const body = { edit: tabEdit, graphics: tabGraphics, export: tabExport, notes: tabNotes }[S.tab](fmt);
+  return h('div', { class: 'page page--wide' }, head, flashSlot(),
     warn.length ? alertBox('warning', plan.error ? 'The edit could not be planned' : 'Check before rendering', warn.join('\n')) : null,
-    h('div', { class: 'tabs', role: 'tablist' }, tabs.map(([id, label]) => h('button', { class: 'tab', role: 'tab', type: 'button', 'aria-selected': S.tab === id ? 'true' : 'false', onclick: () => { S.tab = id; store.set('tab', id); render(); } }, label))),
+    h('div', { class: 'tabs', role: 'tablist' }, tabs.map(([id, label]) => h('button', { class: 'tab', role: 'tab', type: 'button', 'aria-selected': S.tab === id ? 'true' : 'false', onclick: () => { pause(); S.tab = id; store.set('tab', id); render(); } }, label))),
     body);
 }
 
-/* ---- Edit tab: player + transcript */
-function tabEdit(fmt) {
-  const P = S.P, plan = P.plan || {}, cfg = P.preset;
-  const src = plan.proxy || P.video;
-  const video = h('video', { class: 'viewer', id: 'src-video', src: src ? media(src) : null, controls: true, preload: 'metadata' });
-  video.addEventListener('error', () => { const n = $('#vid-note'); if (n) n.replaceChildren(alertBox('info', 'This file does not play in the browser', 'Make a proxy (small H.264 copy) and the player uses it instead.')); });
-  const preview = store.get('preview-edit', true);
-  const trim = Object.assign({}, cfg.trim || {});
-  const stats = h('div', { class: 'stats', id: 'stats' });
-  const left = h('div', { class: 'col' },
-    h('section', { class: 'panel col' },
-      h('h2', { class: 'panel__title' }, plan.proxy ? 'Source (proxy)' : 'Source', h('span', { class: 'mono-sm', id: 'now-tc' }, '00:00.0')),
-      video, h('div', { id: 'vid-note' }),
-      h('div', { class: 'row' },
-        toggle('Preview edit', preview, v => store.set('preview-edit', v)),
-        h('span', { class: 'field__help' }, 'Plays only what the edit keeps.'),
-        h('button', { class: 'btn btn--sm right', type: 'button', onclick: () => runJob({ tool: 'make', name: P.name, action: 'proxy' }) }, plan.proxy ? 'Remake proxy' : 'Make proxy'))),
-    h('section', { class: 'panel col' }, h('h2', { class: 'panel__title' }, 'The edit'), stats),
-    h('section', { class: 'panel col' },
-      h('h2', { class: 'panel__title' }, 'Pauses and fillers'),
-      h('div', { class: 'fields' },
-        field('Mode', select(trim.mode || 'words', [['words', 'Cut pauses'], ['head_tail', 'Head and tail only'], ['none', 'Keep all']], v => mutate(c => { c.trim = { ...(c.trim || {}), mode: v }; }))),
-        field('Longest pause (s)', numInput(trim.max_gap, v => mutate(c => { c.trim = { ...(c.trim || {}), max_gap: v }; }), { min: 0.1, step: 0.1, placeholder: fmt === 'interview' ? '0.6' : '1.4' })),
-        field('Air before (s)', numInput(trim.lead, v => mutate(c => { c.trim = { ...(c.trim || {}), lead: v }; }), { min: 0, step: 0.05 })),
-        field('Air after (s)', numInput(trim.tail, v => mutate(c => { c.trim = { ...(c.trim || {}), tail: v }; }), { min: 0, step: 0.05 }))),
-      toggle('Cut um / uh', !!trim.fillers, v => mutate(c => { c.trim = { ...(c.trim || {}), fillers: v }; }))),
-    activeJobsFor(j => j.project === P.name));
-  const right = P.words ? transcriptPanel(fmt) : h('section', { class: 'panel col' },
-    h('h2', { class: 'panel__title' }, 'Transcript'),
-    alertBox('info', 'No transcript yet', 'Transcribe the recording to edit by text. small.en is a good default; tiny.en is fastest for a test.'),
-    transcribeRow(fmt));
-  setTimeout(() => { updateStats(); attachPlayer(video); }, 0);
-  return h('div', { class: 'grid-edit' }, left, right);
+/* ================================================================ edit model (mirrors edl.py / longform.py) */
+const TRANS = { fade: 'Dissolve', dip_black: 'Dip to black', dip_white: 'Dip to white', wipe_left: 'Wipe left', wipe_right: 'Wipe right', slide_left: 'Slide left', slide_up: 'Slide up', zoom: 'Zoom in', circle: 'Circle' };
+const DEF_PUNCH = { interview: { mode: 'alternate', scale: 1.12, min_seg: 1.2 }, presentation: { mode: 'off' } };
+const ANIM_IN = [['none', 'None'], ['fade', 'Fade'], ['slide_up', 'Slide up'], ['slide_left', 'Slide in'], ['pop', 'Pop'], ['type', 'Typewriter']];
+const ANIM_OUT = [['none', 'None'], ['fade', 'Fade'], ['slide_down', 'Slide down'], ['slide_right', 'Slide out'], ['pop', 'Pop']];
+const GFX_ANIM = [['fade', 'Fade'], ['slide_right', 'Slide from left'], ['slide_left', 'Slide from right'], ['slide_up', 'Slide up'], ['none', 'None']];
+const FONTS = { display: ['"Chakra Petch"', 700], sans: ['"IBM Plex Sans"', 600], mono: ['"Share Tech Mono"', 400] };
+const COLORS = { white: '#f0f8ff', cyan: '#00e5ff', magenta: '#ff2ed6', black: '#000000' };   /* video palette (style/signature.json), not UI tokens */
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+
+function buildEdl(clips, fps) {
+  const out = [];
+  for (const c of clips) { const ka = Math.round(c.in * fps), kb = Math.round(c.out * fps); if (kb - ka >= 2) out.push({ ...c, ka, kb }); }
+  let start = 0, prev = 0;
+  out.forEach((c, i) => {
+    const n = c.kb - c.ka, t = c.transition || {};
+    let ov = 0;
+    if (i && TRANS[t.type]) ov = Math.max(0, Math.min(Math.round((t.dur ?? 0.5) * fps), Math.floor(n / 2), Math.floor(prev / 2)));
+    c.ov = ov; start -= ov; c.sf = start; c.start = start / fps; c.dur = n / fps; c.end = c.start + c.dur; c.src_in = c.ka / fps; c.src_out = c.kb / fps;
+    start += n; prev = n;
+  });
+  return { clips: out, fps, dur: start / fps };
 }
+function clipAt(E, t) { const k = Math.floor(t * E.fps + 1e-6); let idx = 0; for (let i = 0; i < E.clips.length; i++) { if (E.clips[i].sf <= k) idx = i; else break; } return idx; }
+function srcAt(E, t) { const i = clipAt(E, t), c = E.clips[i]; if (!c) return [0, 0]; const local = Math.min(Math.max(0, t - c.start), (c.kb - c.ka - 1) / E.fps); return [i, c.src_in + local]; }
+function toEdit(E, src) { for (const c of E.clips) if (c.src_in <= src && src <= c.src_out) return c.start + src - c.src_in; return null; }
+function toEditFwd(E, src) { const t = toEdit(E, src); if (t !== null) return t; let best = null; for (const c of E.clips) if (c.src_in > src && (!best || c.ka < best.ka)) best = c; return best ? best.start : E.dur; }
+function remapWords(E, words) {
+  const out = [];
+  for (const w of words || []) {
+    const m = (w.start + w.end) / 2, a = toEdit(E, m); if (a === null) continue;
+    const d = w.end - w.start; let st = toEdit(E, w.start); if (st === null) st = a - d / 2;
+    out.push({ ...w, start: st, end: st + d });
+  }
+  return out.sort((x, y) => x.start - y.start);
+}
+function snapFrame(x, fps) { return Math.round(x * fps) / fps; }
+function cutRange(clips, a, b) {
+  const out = [];
+  for (const c of clips) {
+    if (b <= c.in || a >= c.out) { out.push(c); continue; }
+    if (a > c.in) out.push({ ...c, out: a });
+    if (b < c.out) { const r = { ...c, in: b }; delete r.transition; out.push(r); }
+  }
+  return out;
+}
+function restoreRange(clips, a, b, fps) {
+  if (clips.some(c => c.in <= a && b <= c.out)) return clips;
+  let at = 0;
+  clips.forEach((c, i) => { if (c.out <= a + 1e-6) at = i + 1; });
+  const out = clips.slice(); out.splice(at, 0, { in: a, out: b });
+  const merged = [];
+  for (const c of out) {                                     // join neighbours that now touch in source order
+    const p = merged[merged.length - 1];
+    if (p && c.in <= p.out + 1.5 / fps && c.in >= p.in && !c.transition) p.out = Math.max(p.out, c.out); else merged.push({ ...c });
+  }
+  return merged;
+}
+function splitAt(clips, t, fps) {
+  const E = buildEdl(clips, fps), [i, src0] = srcAt(E, t), c = E.clips[i];
+  const src = snapFrame(src0, fps);
+  if (!c || src - c.src_in < 2 / fps || c.src_out - src < 2 / fps) return null;
+  const raw = E.clips.map(x => { const r = { ...x }; for (const k of ['ka', 'kb', 'ov', 'sf', 'start', 'dur', 'end', 'src_in', 'src_out']) delete r[k]; return r; });
+  const left = { ...raw[i], out: src }, right = { ...raw[i], in: src }; delete right.transition;
+  return [...raw.slice(0, i), left, right, ...raw.slice(i + 1)];
+}
+function rawClips(E) { return E.clips.map(x => { const r = { ...x, in: round3(x.src_in), out: round3(x.src_out) }; for (const k of ['ka', 'kb', 'ov', 'sf', 'start', 'dur', 'end', 'src_in', 'src_out']) delete r[k]; return r; }); }
+function clipsOf(c) { if (!(c.clips && c.clips.length)) c.clips = rawClips(ED.edl); return c.clips; }   /* first timeline edit: auto -> manual */
+function gradeMatrix(g) {
+  g = g || {};
+  const e = Math.pow(2, +(g.exposure || 0)), t = +(g.temperature || 0), ti = +(g.tint || 0), s = g.saturation ?? 1;
+  const gains = [e * (1 + 0.25 * t), e * (1 - 0.15 * ti), e * (1 - 0.25 * t)];
+  const lr = 0.2126, lg = 0.7152, lb = 0.0722;
+  const S2 = [[lr + (1 - lr) * s, lg - lg * s, lb - lb * s], [lr - lr * s, lg + (1 - lg) * s, lb - lb * s], [lr - lr * s, lg - lg * s, lb + (1 - lb) * s]];
+  return S2.map(row => row.map((v, c) => v * gains[c]));
+}
+function gradeNeutral(g) { const m = gradeMatrix(g); const c = g ? (g.contrast ?? 1) : 1; return Math.abs(c - 1) < 1e-4 && m.every((r, i) => r.every((v, k) => Math.abs(v - (i === k ? 1 : 0)) < 1e-4)); }
+function rotZoom(deg, w, h) { const a = Math.abs(deg) * Math.PI / 180; return Math.cos(a) + Math.max(w / h, h / w) * Math.sin(a); }
+
+const ED = {
+  sel: null, t: 0, pps: null, snap: store.get('snap', true), snapBeats: false, beats: null, bpm: null,
+  safe: store.get('safe', true), grid: false, side: 'inspector', gfx: {}, gfxSig: '', edl: { clips: [], fps: 30, dur: 0 }, looks: [], words: [],
+  model() {
+    const P = S.P, plan = P.plan || {}, c = P.preset;
+    this.fps = plan.fps || 30;
+    this.size = plan.size || [1080, 1920];
+    const src = plan.source || {};
+    this.srcW = src.width || 1920; this.srcH = src.height || 1080;
+    const clips = (c.clips && c.clips.length) ? c.clips
+      : (plan.auto_segments && plan.auto_segments.length ? plan.auto_segments.map(([a, b]) => ({ in: a, out: b }))
+        : [{ in: 0, out: plan.source_duration || 0 }]);
+    this.edl = buildEdl(clips, this.fps);
+    this.looks = clipLooks(this.edl);
+    this.words = remapWords(this.edl, P.words);
+    this.endCard = c.end ? { dur: +(c.end.dur || 3) } : null;
+  },
+  total() { return this.edl.dur + (this.endCard ? this.endCard.dur : 0); },
+  refresh(opts = {}) {
+    if (!S.P || S.view === 'reel') return;
+    const before = (this.size || []).join('x');
+    this.model();
+    if (S.tab !== 'edit') return;                      /* other tabs re-render only when asked (mutate render:true) */
+    if (before !== this.size.join('x')) { sizeStage(); drawGuides(); refreshGraphics(true); }
+    const badge = $('#mode-badge'); if (badge) badge.textContent = (S.P.preset.clips && S.P.preset.clips.length) ? 'Manual timeline' : 'Auto cut';
+    if (this.sel && !selectedItem()) this.sel = null;
+    renderTimeline(); markWords(); placeAll(); updateFrame(true); updateStats();
+    if (opts.inspector !== false) renderSide();
+  },
+};
+function clipLooks(E) {
+  const c = S.P.preset, o = c.output || {}, p = { ...DEF_PUNCH[S.P.kind], ...(c.punch || {}) };
+  const z0 = Math.max(1, +(o.zoom || 1)), f0 = o.focus || [0.5, 0.4], r0 = +(o.rotate || 0), g0 = c.grade || {};
+  let tight = false;
+  return E.clips.map((cl, i) => {
+    const dur = (cl.kb - cl.ka) / E.fps;
+    if (i && dur >= (p.min_seg ?? 1.2)) tight = !tight;
+    const z = cl.zoom ? +cl.zoom : (p.mode === 'alternate' && tight ? +(p.scale ?? 1.12) : 1);
+    return { zoom: z0 * z, focus: cl.focus || f0, rotate: cl.rotate ?? r0, grade: cl.grade ? { ...g0, ...cl.grade } : g0 };
+  });
+}
+function span(item, defDur) {
+  const E = ED.edl;
+  let t = item.at_src !== undefined ? toEditFwd(E, +item.at_src) : +(item.at || 0);
+  let d = item.end_src !== undefined ? toEditFwd(E, +item.end_src) - t : +(item.dur ?? defDur);
+  t = clamp(t, 0, E.dur);
+  return [t, Math.max(0, Math.min(d, E.dur - t))];
+}
+const ITEM_KEYS = { text: 'texts', lower_thirds: 'lower_thirds', titles: 'titles', chapters: 'chapters', broll: 'broll' };
+const DEF_DUR = { text: 3, lower_thirds: 4.5, titles: 2.6, chapters: 3, broll: 3 };
+function selectedItem() {
+  const s = ED.sel; if (!s) return null;
+  if (s.type === 'clip') return ED.edl.clips[s.idx] || null;
+  if (s.type === 'intro') return S.P.preset.intro || null;
+  return (S.P.preset[ITEM_KEYS[s.type]] || [])[s.idx] || null;
+}
+function setItemTime(item, t, d, type) {
+  const E = ED.edl;
+  if (type === 'intro') { item.dur = round3(Math.max(0.5, d)); return; }
+  if (item.at_src !== undefined) { item.at_src = round3(srcAt(E, t)[1]); delete item.at; }
+  else item.at = round3(t);
+  if (type !== 'chapters') { delete item.end_src; item.dur = round3(Math.max(0.2, d)); }
+}
+
+/* ================================================================ Edit tab */
+let PL = { act: null, alt: null, cur: -1, playing: false, fade: null, endStart: null };
+let rafId = 0;
+function tabEdit(fmt) {
+  ED.fmt = fmt; ED.model();
+  const plan = S.P.plan || {};
+  if (plan.error) return h('section', { class: 'panel col' }, alertBox('danger', 'The editor needs a valid plan', 'Fix the problem above (often: transcribe first, or check the video path), then reopen.'));
+  const src = plan.proxy || S.P.video;
+  const mk = id => { const v = h('video', { class: 'vid', id, src: media(src), preload: 'auto', playsinline: true }); v.addEventListener('loadedmetadata', () => { placeAll(); updateFrame(true); }); v.addEventListener('error', () => { const n = $('#vid-note'); if (n) n.replaceChildren(alertBox('info', 'This file does not play in the browser', 'Make a proxy (Export tab, or the button below) and the preview uses it.')); }); return v; };
+  const stage = h('div', { class: 'stage', id: 'stage' },
+    h('div', { class: 'layer', id: 'lay-media' }, mk('vA'), mk('vB'),
+      h('img', { class: 'broll', id: 'br-img', alt: '' }), h('video', { class: 'broll', id: 'br-vid', muted: true, playsinline: true, preload: 'auto' })),
+    h('div', { class: 'layer veil', id: 'veil' }),
+    h('div', { class: 'layer', id: 'lay-gfx' }),
+    h('div', { class: 'layer', id: 'lay-text' }),
+    h('img', { class: 'layer endcard', id: 'end-img', alt: '' }),
+    h('div', { class: 'layer guides', id: 'lay-guides' }));
+  const music = h('audio', { id: 'music', preload: 'auto', src: plan.music ? media(plan.music) : null });
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('width', '0'); svg.setAttribute('height', '0'); svg.setAttribute('style', 'position:absolute'); svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = ['gfA', 'gfB'].map(id => `<filter id="${id}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"/><feComponentTransfer><feFuncR type="linear" slope="1" intercept="0"/><feFuncG type="linear" slope="1" intercept="0"/><feFuncB type="linear" slope="1" intercept="0"/></feComponentTransfer></filter>`).join('');
+  const transport = h('div', { class: 'transport' },
+    h('button', { class: 'btn btn--primary', id: 'play-btn', type: 'button', onclick: () => PL.playing ? pause() : play(), title: 'Play / pause (Space)' }, 'Play'),
+    h('span', { class: 'mono', id: 'tc' }, '00:00.0'),
+    h('button', { class: 'btn btn--sm', type: 'button', onclick: () => stepFrames(-1), title: 'Back one frame (Left)' }, '-1f'),
+    h('button', { class: 'btn btn--sm', type: 'button', onclick: () => stepFrames(1), title: 'Forward one frame (Right)' }, '+1f'),
+    h('span', { class: 'grow' }),
+    toggle('Safe zones', ED.safe, v => { ED.safe = v; store.set('safe', v); drawGuides(); }),
+    toggle('Level grid', ED.grid, v => { ED.grid = v; drawGuides(); }));
+  const stats = h('div', { class: 'mono-sm muted', id: 'stats' });
+  const left = h('div', { class: 'col', style: 'gap: var(--space-3)' },
+    h('div', { class: 'stage-wrap', id: 'stage-wrap' }, stage), h('div', { id: 'vid-note' }), transport, stats, music, svg);
+  const side = h('section', { class: 'panel col side', id: 'side' });
+  const tl = h('section', { class: 'panel tl-panel', id: 'tl-panel' });
+  setTimeout(() => {
+    cancelAnimationFrame(rafId);
+    PL = { act: $('#vA'), alt: $('#vB'), cur: -1, playing: false, fade: null, endStart: null };
+    PL.act.style.zIndex = 2; PL.alt.style.zIndex = 1; PL.alt.muted = true;
+    const ro = new ResizeObserver(() => requestAnimationFrame(() => { sizeStage(); placeAll(); updateFrame(true); renderTimeline(); }));
+    ro.observe($('#stage-wrap'));
+    sizeStage(); renderTimeline(); renderSide(); drawGuides(); refreshGraphics(true); seek(ED.t);
+    rafId = requestAnimationFrame(loop);
+  }, 0);
+  return h('div', { class: 'col', style: 'gap: var(--space-4)' }, h('div', { class: 'editor' }, left, side), tl);
+}
+function sizeStage() {
+  const wrap = $('#stage-wrap'), st = $('#stage'); if (!wrap || !st) return;
+  const [W, H] = ED.size;
+  const maxH = Math.max(220, window.innerHeight * 0.56);
+  let w = wrap.clientWidth, hh = w * H / W;
+  if (hh > maxH) { hh = maxH; w = hh * W / H; }
+  st.style.width = w + 'px'; st.style.height = hh + 'px';
+  ED.k = w / W;
+}
+function placeVideo(v, look, fid) {
+  if (!v || !look) return;
+  const [W, H] = ED.size, k = ED.k || 0.3;
+  const sw = v.videoWidth || ED.srcW, sh = v.videoHeight || ED.srcH;
+  const m = Math.max(W / sw, H / sh), c = m * look.zoom, iw = sw * c, ih = sh * c;
+  const x0 = clamp(look.focus[0] * iw - W / 2, 0, iw - W), y0 = clamp(look.focus[1] * ih - H / 2, 0, ih - H);
+  Object.assign(v.style, { width: iw * k + 'px', height: ih * k + 'px', left: -x0 * k + 'px', top: -y0 * k + 'px' });
+  const s = Math.abs(look.rotate) > 1e-3 ? rotZoom(look.rotate, sw, sh) : 1;
+  v.style.transform = s === 1 ? '' : `rotate(${look.rotate}deg) scale(${s})`;
+  const g = look.grade || {};
+  if (gradeNeutral(g)) { v.style.filter = ''; return; }
+  const f = document.getElementById(fid); if (!f) return;
+  const M = gradeMatrix(g), c2 = g.contrast ?? 1;
+  f.querySelector('feColorMatrix').setAttribute('values', `${M[0].join(' ')} 0 0 ${M[1].join(' ')} 0 0 ${M[2].join(' ')} 0 0 0 0 0 1 0`);
+  f.querySelectorAll('feFuncR, feFuncG, feFuncB').forEach(fn => { fn.setAttribute('slope', c2); fn.setAttribute('intercept', 0.5 - 0.5 * c2); });
+  v.style.filter = `url(#${fid})`;
+}
+function placeAll() {
+  if (!PL.act) return;
+  for (const v of [PL.act, PL.alt]) { const i = +(v.dataset.clip ?? -1); if (i >= 0) placeVideo(v, ED.looks[i], v.id === 'vA' ? 'gfA' : 'gfB'); }
+}
+function loadClip(v, i, src) {
+  const c = ED.edl.clips[i]; if (!c || !v) return;
+  v.dataset.clip = i;
+  if (Math.abs(v.currentTime - src) > 0.02) { try { v.currentTime = src; } catch (e) {} }
+  placeVideo(v, ED.looks[i], v.id === 'vA' ? 'gfA' : 'gfB');
+}
+function preload(j) { const c = ED.edl.clips[j]; if (c && PL.alt) { loadClip(PL.alt, j, c.src_in); PL.alt.pause(); PL.alt.style.opacity = 0; } }
+function seek(t) {
+  ED.t = clamp(t, 0, ED.total());
+  const E = ED.edl;
+  if (!PL.act) return;
+  PL.fade = null; $('#veil') && ($('#veil').style.opacity = 0);
+  if (ED.t < E.dur && E.clips.length) {
+    const [i, src] = srcAt(E, ED.t);
+    PL.cur = i; loadClip(PL.act, i, src); PL.act.style.opacity = 1; PL.act.volume = 1; PL.act.muted = false;
+    PL.endStart = null;
+    if (PL.playing) PL.act.play().catch(() => {});
+    preload(i + 1);
+  } else { PL.act.pause(); PL.endStart = PL.playing ? performance.now() - (ED.t - E.dur) * 1000 : null; }
+  syncMusic(true); syncBroll(true); updateFrame(true);
+}
+function stepFrames(n) { pause(); seek(ED.t + n / ED.fps); }
+function play() {
+  if (!PL.act) return;
+  if (ED.t >= ED.total() - 0.05) seek(0);
+  PL.playing = true;
+  if (ED.t < ED.edl.dur) PL.act.play().catch(() => {}); else PL.endStart = performance.now() - (ED.t - ED.edl.dur) * 1000;
+  syncMusic(true); syncBroll(true); updateTransport();
+}
+function pause() {
+  PL.playing = false;
+  for (const v of [PL.act, PL.alt, $('#br-vid'), $('#music')]) if (v) v.pause();
+  updateTransport();
+}
+function updateTransport() { const b = $('#play-btn'); if (b) b.textContent = PL.playing ? 'Pause' : 'Play'; }
+function loop() {
+  if (!document.body.contains(PL.act || null)) return;
+  const E = ED.edl;
+  if (PL.playing) {
+    if (ED.t < E.dur && PL.cur >= 0 && E.clips[PL.cur]) {
+      const c = E.clips[PL.cur];
+      if (!PL.act.seeking) ED.t = Math.max(c.start, c.start + (PL.act.currentTime - c.src_in));
+      const n = E.clips[PL.cur + 1];
+      if (n && ED.t >= n.start - 0.5 / E.fps) {
+        const old = PL.act; PL.act = PL.alt; PL.alt = old; PL.cur++;
+        PL.act.style.zIndex = 2; old.style.zIndex = 1; PL.act.muted = false;
+        if (+PL.act.dataset.clip !== PL.cur || Math.abs(PL.act.currentTime - n.src_in) > 0.2) loadClip(PL.act, PL.cur, n.src_in + Math.max(0, ED.t - n.start));
+        PL.act.play().catch(() => {});
+        if (n.ov > 0) { PL.fade = { from: old, start: n.start, dur: n.ov / E.fps, type: n.transition.type }; PL.act.style.opacity = 0; }
+        else { old.pause(); old.style.opacity = 0; PL.act.style.opacity = 1; preload(PL.cur + 1); }
+      }
+      if (PL.fade) {
+        const p = clamp((ED.t - PL.fade.start) / PL.fade.dur, 0, 1), veil = $('#veil');
+        if (PL.fade.type === 'dip_black' || PL.fade.type === 'dip_white') {
+          veil.style.background = PL.fade.type === 'dip_white' ? '#fff' : '#000';
+          veil.style.opacity = 1 - Math.abs(2 * p - 1); PL.act.style.opacity = p >= 0.5 ? 1 : 0;
+        } else PL.act.style.opacity = p;                    /* every other transition previews as a dissolve */
+        PL.act.volume = Math.sin(p * Math.PI / 2); PL.fade.from.volume = Math.cos(p * Math.PI / 2);
+        if (p >= 1) { const f = PL.fade.from; f.pause(); f.style.opacity = 0; f.volume = 1; f.muted = true; veil.style.opacity = 0; PL.fade = null; preload(PL.cur + 1); }
+      }
+      const cur = E.clips[PL.cur];
+      if (!E.clips[PL.cur + 1] && ED.t >= cur.end - 1 / E.fps) { PL.act.pause(); ED.t = E.dur; PL.endStart = performance.now(); }
+    } else {
+      if (PL.endStart === null) PL.endStart = performance.now() - (ED.t - E.dur) * 1000;
+      ED.t = E.dur + (performance.now() - PL.endStart) / 1000;
+      if (ED.t >= ED.total()) { ED.t = ED.total(); pause(); }
+    }
+    syncMusic(false); syncBroll(false);
+    updateFrame(false);
+  }
+  rafId = requestAnimationFrame(loop);
+}
+function syncMusic(force) {
+  const m = $('#music'), mu = S.P.preset.music || {};
+  if (!m || !m.src) return;
+  const want = +(mu.start || 0) + ED.t;
+  m.volume = clamp(Math.pow(10, (+(mu.db ?? -24)) / 20) * 2, 0, 1);    /* a touch louder than the mix: ducking is not previewed */
+  if (!PL.playing) { m.pause(); if (force) try { m.currentTime = want; } catch (e) {} return; }
+  if (force || Math.abs(m.currentTime - want) > 0.25) try { m.currentTime = want; } catch (e) {}
+  if (m.paused) m.play().catch(() => {});
+}
+function activeBroll(t) {
+  const list = S.P.preset.broll || [];
+  for (let i = 0; i < list.length; i++) { const [a, d] = span(list[i], 3); if (list[i].file && t >= a && t < a + d) return [list[i], a, d]; }
+  return null;
+}
+function syncBroll(force) {
+  const img = $('#br-img'), vid = $('#br-vid'); if (!img) return;
+  const hit = ED.t < ED.edl.dur ? activeBroll(ED.t) : null;
+  if (!hit) { img.style.display = 'none'; vid.style.display = 'none'; vid.pause(); return; }
+  const [b, a, d] = hit, url = media(b.file), isImg = /\.(jpe?g|png|webp|tiff?|bmp)$/i.test(b.file);
+  const p = Math.min((ED.t - a) / 0.25, (a + d - ED.t) / 0.25, 1);
+  if (isImg) {
+    vid.style.display = 'none'; vid.pause();
+    if (img.dataset.src !== url) { img.src = url; img.dataset.src = url; }
+    img.style.display = 'block'; img.style.opacity = clamp(p, 0, 1);
+  } else {
+    img.style.display = 'none';
+    if (vid.dataset.src !== url) { vid.src = url; vid.dataset.src = url; }
+    vid.style.display = 'block'; vid.style.opacity = clamp(p, 0, 1);
+    const want = +(b.from || 0) + ED.t - a;
+    if (force || Math.abs(vid.currentTime - want) > 0.3) try { vid.currentTime = want; } catch (e) {}
+    if (PL.playing && vid.paused) vid.play().catch(() => {}); if (!PL.playing) vid.pause();
+  }
+}
+
+/* ---- overlays: captions, text, graphics (what the export draws, at the same positions) */
+function groupWords(ws, maxWords, maxChars, maxGap = 0.6) {
+  const groups = []; let cur = [];
+  for (const w of ws) {
+    const chars = cur.reduce((n, x) => n + x.w.length + 1, 0) + w.w.length;
+    const last = cur[cur.length - 1];
+    if (cur.length && (cur.length >= maxWords || chars > maxChars || w.start - last.end > maxGap || /[.!?]$/.test(last.w))) { groups.push(cur); cur = []; }
+    cur.push(w);
+  }
+  if (cur.length) groups.push(cur);
+  return groups.map(g => ({ words: g, start: g[0].start, end: g[g.length - 1].end }));
+}
+function splitLines(text, maxChars) {
+  if (text.length <= maxChars || !text.includes(' ')) return [text];
+  let best = -1, bestScore = 1e9;
+  for (let i = 0; i < text.length; i++) if (text[i] === ' ') { const sc = Math.max(i, text.length - i - 1); if (sc < bestScore) { bestScore = sc; best = i; } }
+  return [text.slice(0, best), text.slice(best + 1)];
+}
+function lineCues(ws, maxChars, maxLines = 2, maxDur = 6, gap = 0.8) {
+  const cues = []; let cur = [];
+  const txt = a => a.map(x => x.w).join(' ');
+  const flush = () => { if (cur.length) cues.push({ start: cur[0].start, end: cur[cur.length - 1].end, text: txt(cur) }); };
+  for (const w of ws) {
+    if (cur.length) {
+      const len = txt(cur).length + 1 + w.w.length, last = cur[cur.length - 1];
+      const done = /[.!?]$/.test(last.w) && txt(cur).length > maxChars * 0.5;
+      if (len > maxChars * maxLines || w.start - last.end > gap || w.end - cur[0].start > maxDur || done) { flush(); cur = []; }
+    }
+    cur.push(w);
+  }
+  flush();
+  cues.forEach((c, i) => { const nxt = i + 1 < cues.length ? cues[i + 1].start - 0.04 : c.end + 2; c.end = Math.min(Math.max(c.end + 0.2, c.start + 1.0), nxt); c.lines = splitLines(c.text, maxChars); });
+  return cues;
+}
+function captionsAt(t) {
+  const cc = S.P.preset.captions, mode = (S.P.plan || {}).captions;
+  const base0 = (S.P.plan || {}).caption_style;
+  const st = base0 ? { ...base0, ...(cc && typeof cc === 'object' ? Object.fromEntries(Object.entries(cc).filter(([k]) => k !== 'mode')) : {}) } : null;
+  if (!st || mode === 'off' || !ED.words.length) return null;
+  const up = !!st.uppercase, wds = ED.words.map(w => ({ ...w, w: up ? w.w.toUpperCase() : w.w }));
+  if (mode === 'lines') {
+    if (!ED._cues || ED._cuesKey !== ED.words.length + ':' + st.max_chars) { ED._cues = lineCues(wds, st.max_chars, st.max_lines || 2, st.max_dur || 6); ED._cuesKey = ED.words.length + ':' + st.max_chars; }
+    const c = ED._cues.find(c => t >= c.start && t < c.end);
+    return c ? { mode, st, lines: c.lines } : null;
+  }
+  const groups = groupWords(wds, st.max_words || 3, st.max_chars || 22);
+  for (let i = 0; i < groups.length; i++) {
+    const g = groups[i], nxt = i + 1 < groups.length ? groups[i + 1].start - 0.04 : 1e9;
+    if (t >= g.start - 0.04 && t < Math.min(g.end + (st.hold_after ?? 0.25), nxt)) {
+      let on = 0; g.words.forEach((w, k) => { if (w.start <= t) on = k; });
+      return { mode, st, words: g.words.map(w => w.w), on };
+    }
+  }
+  return null;
+}
+function outlineShadow(px, color = '#000') {
+  const o = Math.max(0.5, px); const s = [];
+  for (let a = 0; a < 16; a++) { const r = a * Math.PI / 8; s.push(`${(Math.cos(r) * o).toFixed(2)}px ${(Math.sin(r) * o).toFixed(2)}px 0 ${color}`); }
+  return s.join(',');
+}
+function renderCaption(lay, t) {
+  const cap = captionsAt(t); const [W, H] = ED.size, k = ED.k;
+  if (!cap) return;
+  const st = cap.st, size = st.size * H * k;
+  const el = h('div', { class: 'cap' });
+  Object.assign(el.style, { bottom: (1 - st.y) * H * k + 'px', fontSize: size + 'px', color: COLORS[st.color || 'white'] });
+  if (cap.mode === 'lines') {
+    Object.assign(el.style, { fontFamily: '"IBM Plex Sans"', fontWeight: 600, background: `rgba(0,0,0,${st.box ?? 0.6})`, padding: `${size * 0.12}px ${size * 0.25}px`, lineHeight: 1.25, maxWidth: '88%' });
+    cap.lines.forEach((l, i) => { if (i) el.append(h('br')); el.append(l); });
+  } else {
+    Object.assign(el.style, { fontFamily: '"Chakra Petch"', fontWeight: 700, textShadow: outlineShadow((st.outline || 0.0042) * H * k), whiteSpace: 'nowrap' });
+    cap.words.forEach((w, i) => { if (i) el.append(' '); el.append(h('span', { style: i === cap.on ? `color:${COLORS[st.highlight || 'cyan']}` : null }, w)); });
+  }
+  lay.append(el);
+}
+function textState(item, t, a, d) {
+  const ain = item.anim_in || 'fade', aout = item.anim_out || 'fade';
+  let din = +(item.anim_dur || 0.4), dout = din;
+  if (ain === 'type') din = Math.max(din, Math.min(2.5, 0.045 * String(item.text || '').length));
+  din = ain === 'none' ? 0 : Math.min(din, d * 0.45); dout = aout === 'none' ? 0 : Math.min(dout, d * 0.45);
+  const st = { o: 1, dx: 0, dy: 0, s: 1, chars: null };
+  const [W, H] = ED.size, dy = H * 0.04, dx = W * 0.05;
+  if (din && t < a + din) {
+    const p = clamp((t - a) / din, 0, 1);
+    if (ain === 'fade') st.o = p;
+    else if (ain === 'slide_up') { st.o = p; st.dy = (1 - p) * dy; }
+    else if (ain === 'slide_left') { st.o = p; st.dx = (1 - p) * dx; }
+    else if (ain === 'pop') { st.o = Math.min(1, p / 0.6); st.s = 0.7 + 0.3 * Math.pow(p, 0.6); }
+    else if (ain === 'type') st.chars = Math.floor(p * String(item.text || '').length);
+  } else if (dout && t > a + d - dout) {
+    const p = clamp((t - (a + d - dout)) / dout, 0, 1);
+    st.o = 1 - p;
+    if (aout === 'slide_down') st.dy = p * dy; else if (aout === 'slide_right') st.dx = p * dx; else if (aout === 'pop') st.s = 1 - 0.3 * p;
+  }
+  return st;
+}
+function renderTexts(lay, t) {
+  const list = S.P.preset.texts || [], [W, H] = ED.size, k = ED.k;
+  list.forEach((item, i) => {
+    if (!String(item.text || '').trim()) return;
+    const [a, d] = span(item, 3);
+    const selected = ED.sel && ED.sel.type === 'text' && ED.sel.idx === i;
+    if (!(t >= a && t < a + d) && !(selected && !PL.playing)) return;
+    const st = (t >= a && t < a + d) ? textState(item, t, a, d) : { o: 0.5, dx: 0, dy: 0, s: 1, chars: null };
+    const [fam, wt] = FONTS[item.font || 'display'] || FONTS.display;
+    const size = +(item.size || 0.06) * H * k, box = +(item.box || 0);
+    const raw = String(item.text || ''), shown = st.chars === null ? raw : raw.slice(0, st.chars);
+    const el = h('div', { class: 'txt' + (selected ? ' txt--sel' : ''), 'data-idx': i, title: 'Drag to place' });
+    shown.split('\n').forEach((l, n) => { if (n) el.append(h('br')); el.append(l); });
+    Object.assign(el.style, {
+      left: +(item.x ?? 0.5) * W * k + 'px', top: +(item.y ?? 0.5) * H * k + 'px', fontFamily: fam, fontWeight: wt, fontSize: size + 'px',
+      color: COLORS[item.color || 'white'], opacity: st.o,
+      transform: `translate(-50%,-50%) translate(${st.dx * k}px,${st.dy * k}px) scale(${st.s})`,
+      background: box > 0 ? `rgba(0,0,0,${box})` : 'transparent', padding: box > 0 ? `${size * 0.12}px ${size * 0.28}px` : '0',
+      textShadow: box > 0 ? 'none' : outlineShadow(H * 0.003 * k) + `, ${H * 0.002 * k}px ${H * 0.002 * k}px 0 rgba(0,0,0,0.55)`,
+    });
+    el.addEventListener('pointerdown', e => dragText(e, i, el));
+    lay.append(el);
+  });
+}
+function dragText(e, i, el) {
+  e.preventDefault(); e.stopPropagation();
+  ED.sel = { type: 'text', idx: i }; renderSide(); renderTimeline();
+  const [W, H] = ED.size, k = ED.k, item = S.P.preset.texts[i];
+  const x0 = e.clientX, y0 = e.clientY, ix = +(item.x ?? 0.5), iy = +(item.y ?? 0.5);
+  const snap = JSON.stringify(S.P.preset); let moved = false;
+  const cap = $('#stage');                              /* the text layer re-renders each frame; the stage keeps the capture */
+  cap.setPointerCapture(e.pointerId);
+  cap.onpointermove = ev => {
+    const dx = (ev.clientX - x0) / (W * k), dy = (ev.clientY - y0) / (H * k);
+    if (Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) > 2) moved = true;
+    let nx = clamp(ix + dx, 0, 1), ny = clamp(iy + dy, 0, 1);
+    if (Math.abs(nx - 0.5) < 0.012) nx = 0.5;                     /* snap to the centre line */
+    item.x = round3(nx); item.y = round3(ny); updateFrame(true);
+  };
+  cap.onpointerup = () => { cap.onpointermove = null; cap.onpointerup = null; if (moved) { pushUndo(snap); scheduleSave(); renderSide(); } };
+}
+function renderGraphics(lay, t) {
+  const c = S.P.preset, k = ED.k, [W, H] = ED.size;
+  const items = [];
+  if (c.intro && c.intro.title) items.push(['intro', 0, 0, Math.min(+(c.intro.dur || 3), ED.edl.dur), c.intro.anim || 'fade']);
+  (c.lower_thirds || []).forEach((x, i) => { const [a, d] = span(x, 4.5); items.push(['lower_thirds', i, a, d, x.anim || 'slide_right']); });
+  (c.titles || []).forEach((x, i) => { const [a, d] = span(x, 2.6); items.push(['titles', i, a, d, x.anim || 'fade']); });
+  if (c.chapter_cards ?? (S.P.kind === 'presentation')) {
+    const introEnd = c.intro && c.intro.title ? Math.min(+(c.intro.dur || 3), ED.edl.dur) : 0;
+    (c.chapters || []).forEach((x, i) => { const [a] = span(x, 3); if (a >= introEnd) items.push(['chapters', i, a, Math.min(3, ED.edl.dur - a), x.anim || 'fade']); });
+  }
+  for (const [key, idx, a, d, anim] of items) {
+    if (!(t >= a && t < a + d)) continue;
+    const g = ED.gfx[`${key}_${idx}`]; if (!g) continue;
+    const fi = (key === 'intro' && a === 0) || anim === 'none' ? 0 : 0.3, fo = anim === 'none' ? 0 : 0.35;
+    let o = 1; if (fi && t < a + fi) o = (t - a) / fi; if (fo && t > a + d - fo) o = Math.min(o, (a + d - t) / fo);
+    let dx = 0, dy = 0;
+    const pin = Math.max(0, 1 - (t - a) / 0.45), pout = Math.max(0, (t - (a + d - 0.35)) / 0.35);
+    if (anim === 'slide_right' || anim === 'slide_left') dx = (anim === 'slide_right' ? -1 : 1) * W * 0.03 * (pin + pout);
+    if (anim === 'slide_up') dy = H * 0.025 * (pin + pout);
+    lay.append(h('img', { class: 'gfx', src: g, alt: '', style: `opacity:${clamp(o, 0, 1)};transform:translate(${dx * k}px,${dy * k}px)` }));
+  }
+}
+let gfxTimer = null;
+function gfxSignature() {
+  const c = S.P.preset;
+  return JSON.stringify([c.intro && [c.intro.title, c.intro.subtitle], (c.lower_thirds || []).map(x => [x.name, x.title]), (c.titles || []).map(x => [x.text, x.label]),
+    (c.chapters || []).map(x => x.title), c.end, (c.output || {}).aspect, (c.output || {}).size, ED.size]);
+}
+function refreshGraphics(force) {
+  if (!S.P || S.P.kind === 'reel') return;
+  const sig = gfxSignature();
+  if (!force && sig === ED.gfxSig) return;
+  ED.gfxSig = sig;
+  clearTimeout(gfxTimer);
+  gfxTimer = setTimeout(async () => {
+    try {
+      const r = await api(`/api/graphics?name=${encodeURIComponent(S.P.name)}&width=720`);
+      if (r.error) return;
+      ED.gfx = {}; ED.endPng = null;
+      for (const g of r.graphics) { const url = media(g.png) + `&v=${g.mtime}`; if (g.kind === 'end') ED.endPng = url; else ED.gfx[`${g.key}_${g.idx}`] = url; }
+      updateFrame(true);
+    } catch (e) {}
+  }, force ? 0 : 500);
+}
+let lastFrameT = -1;
+function updateFrame(force) {
+  if (!PL.act) return;
+  const t = ED.t;
+  const tc = $('#tc'); if (tc) tc.textContent = `${fmtT(t)} / ${fmtT(ED.total())}`;
+  const ph = $('#tl-playhead'); if (ph && ED.pps) ph.style.left = (t * ED.pps) + 'px';
+  if (!force && Math.abs(t - lastFrameT) < 1 / 120) return;
+  lastFrameT = t;
+  const end = $('#end-img'), inEnd = ED.endCard && t >= ED.edl.dur;
+  if (end) { if (inEnd && ED.endPng) { if (end.dataset.src !== ED.endPng) { end.src = ED.endPng; end.dataset.src = ED.endPng; } end.style.display = 'block'; end.style.opacity = clamp(Math.min((t - ED.edl.dur) / 0.3, (ED.total() - t) / 0.6), 0, 1); } else end.style.display = 'none'; }
+  const gl = $('#lay-gfx'); if (gl) { gl.replaceChildren(); if (!inEnd) renderGraphics(gl, t); }
+  const tl = $('#lay-text'); if (tl) { tl.replaceChildren(); if (!inEnd) { renderTexts(tl, t); renderCaption(tl, t); } }
+  if (!PL.playing) syncBroll(false);
+  highlightWord(t);
+}
+function drawGuides() {
+  const g = $('#lay-guides'); if (!g) return;
+  g.replaceChildren();
+  const [W, H] = ED.size;
+  const box = (x, y, w, hh, label) => g.append(h('div', { class: 'safe', style: `left:${x / W * 100}%;top:${y / H * 100}%;width:${w / W * 100}%;height:${hh / H * 100}%` }, label ? h('span', {}, label) : null));
+  if (ED.safe) {
+    if (H > W) {                            /* Instagram / TikTok UI (style/motion_brief.md) */
+      box(0, 0, W, H * 250 / 1920, 'App header');
+      box(0, H * 1560 / 1920, W, H - H * 1560 / 1920, 'Caption and buttons');
+      box(W * 800 / 1080, H * 700 / 1920, W - W * 800 / 1080, H * 800 / 1920, 'Buttons');
+    } else {
+      g.append(h('div', { class: 'safe-line', style: 'left:5%;top:5%;right:5%;bottom:5%' }, h('span', {}, 'Title safe 90%')));
+      g.append(h('div', { class: 'safe-line', style: 'left:3.5%;top:3.5%;right:3.5%;bottom:3.5%' }));
+    }
+  }
+  if (ED.grid) {
+    for (let i = 1; i < 8; i++) g.append(h('div', { class: 'gridline h' + (i === 4 ? ' mid' : ''), style: `top:${i * 12.5}%` }));
+    for (let i = 1; i < 3; i++) g.append(h('div', { class: 'gridline v', style: `left:${i * 33.333}%` }));
+  }
+}
+
+/* ---- timeline */
+function renderTimeline() {
+  const host = $('#tl-panel'); if (!host || !S.P) return;
+  const E = ED.edl, tot = Math.max(1, ED.total()), c = S.P.preset;
+  const avail = Math.max(300, host.clientWidth - 110);
+  if (!ED.pps) ED.pps = Math.max(8, avail / (tot + 1));
+  const pps = ED.pps, width = (tot + 2) * pps;
+  const scroll = $('#tl-scroll') ? $('#tl-scroll').scrollLeft : 0;
+  const ruler = h('div', { class: 'tl-ruler', style: `width:${width}px` });
+  const step = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300].find(s => s * pps >= 70) || 600;
+  for (let t = 0; t <= tot + 1; t += step) ruler.append(h('div', { class: 'tick', style: `left:${t * pps}px` }, h('span', {}, fmtT(t).replace(/\.0$/, ''))));
+  const track = (name) => h('div', { class: 'tl-track', 'data-track': name, style: `width:${width}px` });
+  const tv = track('video'), tt = track('text'), tg = track('gfx'), tb = track('broll'), tm = track('music');
+  const words = S.P.words || [];
+  E.clips.forEach((cl, i) => {
+    const sel = ED.sel && ED.sel.type === 'clip' && ED.sel.idx === i;
+    const ws = words.filter(w => w.start >= cl.src_in - 0.01 && w.end <= cl.src_out + 0.01).slice(0, 8).map(w => w.w).join(' ');
+    const look = ED.looks[i] || {};
+    const flags = [cl.rotate ? 'R' : '', cl.grade ? 'C' : '', cl.zoom || cl.focus ? 'Z' : ''].join('');
+    const nx = E.clips[i + 1], vl = cl.start + cl.ov / E.fps / 2, vr = cl.end - (nx ? nx.ov / E.fps / 2 : 0);   /* blocks meet mid-transition */
+    tv.append(h('div', { class: 'blk clip' + (sel ? ' sel' : '') + (look.zoom > 1.001 && !cl.zoom ? ' tight' : ''), 'data-type': 'clip', 'data-idx': i, style: `left:${vl * pps}px;width:${Math.max(3, (vr - vl) * pps - 1)}px`, title: `Clip ${i + 1}: source ${fmtT(cl.src_in)}–${fmtT(cl.src_out)}${ws ? '\n' + ws : ''}` },
+      h('span', { class: 'blk-label' }, `${i + 1}${flags ? ' ' + flags : ''}  ${ws}`)));
+    if (i) tv.append(h('button', { class: 'tr' + (cl.ov ? ' on' : ''), type: 'button', style: `left:${cl.start * pps + (cl.ov ? cl.ov / E.fps * pps / 2 : 0)}px`, title: cl.ov ? `${TRANS[cl.transition.type]} ${cl.transition.dur ?? 0.5} s` : 'Cut: click to add a transition', onclick: e => { e.stopPropagation(); ED.sel = { type: 'clip', idx: i }; ED.focusTransition = true; renderSide(); renderTimeline(); } }, cl.ov ? 'T' : '+'));
+  });
+  if (ED.endCard) tv.append(h('div', { class: 'blk endblk', style: `left:${E.dur * pps}px;width:${ED.endCard.dur * pps}px` }, h('span', { class: 'blk-label' }, 'End card')));
+  const itemBlk = (trackEl, type, idx, a, d, label, cls = '') => {
+    const sel = ED.sel && ED.sel.type === type && ED.sel.idx === idx;
+    trackEl.append(h('div', { class: `blk item ${cls}` + (sel ? ' sel' : ''), 'data-type': type, 'data-idx': idx, style: `left:${a * pps}px;width:${Math.max(6, d * pps - 1)}px`, title: label }, h('span', { class: 'blk-label' }, label)));
+  };
+  (c.texts || []).forEach((x, i) => { const [a, d] = span(x, 3); itemBlk(tt, 'text', i, a, d, 'T  ' + (x.text || ''), 'it-text'); });
+  if (c.intro && c.intro.title) itemBlk(tg, 'intro', 0, 0, Math.min(+(c.intro.dur || 3), E.dur), 'Intro  ' + c.intro.title, 'it-gfx');
+  (c.lower_thirds || []).forEach((x, i) => { const [a, d] = span(x, 4.5); itemBlk(tg, 'lower_thirds', i, a, d, 'LT  ' + (x.name || ''), 'it-gfx'); });
+  (c.titles || []).forEach((x, i) => { const [a, d] = span(x, 2.6); itemBlk(tg, 'titles', i, a, d, 'Card  ' + (x.text || ''), 'it-gfx'); });
+  (c.chapters || []).forEach((x, i) => { const [a] = span(x, 3); itemBlk(tg, 'chapters', i, a, Math.min(3, Math.max(0.3, E.dur - a)), 'Ch  ' + (x.title || ''), 'it-ch'); });
+  (c.broll || []).forEach((x, i) => { const [a, d] = span(x, 3); itemBlk(tb, 'broll', i, a, d, 'B-roll  ' + base(x.file), 'it-broll'); });
+  if (c.music && c.music.file) tm.append(h('div', { class: 'blk music', style: `left:0;width:${tot * pps}px` }, h('span', { class: 'blk-label' }, `Music  ${base(c.music.file)}${ED.bpm ? `  ${ED.bpm} BPM` : ''}`)));
+  for (const b of ED.beats || []) if (b <= tot) tm.append(h('div', { class: 'beat', style: `left:${b * pps}px` }));
+  const inner = h('div', { class: 'tl-inner', style: `width:${width}px` }, ruler, tv, tt, tg, tb, tm, h('div', { class: 'tl-playhead', id: 'tl-playhead', style: `left:${ED.t * pps}px` }));
+  const labels = h('div', { class: 'tl-labels' }, h('div', { class: 'tl-lab ruler-lab' }, ''), ...['Video', 'Text', 'Graphics', 'B-roll', 'Music'].map(l => h('div', { class: 'tl-lab' }, l)));
+  const sc = h('div', { class: 'tl-scroll', id: 'tl-scroll' }, inner);
+  const bar = h('div', { class: 'tl-bar' },
+    h('span', { class: 'label' }, 'Timeline'),
+    h('button', { class: 'btn btn--sm', type: 'button', title: 'Split the clip at the playhead (S)', onclick: splitHere }, 'Split'),
+    h('button', { class: 'btn btn--sm', type: 'button', title: 'Delete the selection (Delete)', onclick: deleteSel }, 'Delete'),
+    h('button', { class: 'btn btn--sm', type: 'button', title: 'Add a text overlay at the playhead (T)', onclick: addText }, 'Add text'),
+    h('span', { class: 'sep-v' }),
+    h('button', { class: 'btn btn--sm', type: 'button', title: 'Rebuild the clips from the transcript: pauses and fillers cut', onclick: cutPauses }, 'Cut pauses'),
+    h('button', { class: 'btn btn--sm btn--ghost', type: 'button', title: 'One clip: the whole source range', onclick: joinAll }, 'Join all'),
+    h('span', { class: 'sep-v' }),
+    h('button', { class: 'btn btn--sm', type: 'button', title: 'Find the beats in the music bed', onclick: analyseBeats }, ED.beats ? `Beats ${ED.bpm || ''}` : 'Find beats'),
+    toggle('Snap', ED.snap, v => { ED.snap = v; store.set('snap', v); }),
+    ED.beats ? toggle('Snap to beats', ED.snapBeats, v => { ED.snapBeats = v; }) : null,
+    ED.beats ? h('button', { class: 'btn btn--sm', type: 'button', title: 'Move each cut to the nearest beat (within 0.3 s)', onclick: cutsToBeats }, 'Cuts to beats') : null,
+    h('span', { class: 'grow' }),
+    h('button', { class: 'btn btn--sm btn--ghost', type: 'button', title: 'Zoom out', onclick: () => { ED.pps = Math.max(2, ED.pps / 1.5); renderTimeline(); } }, '-'),
+    h('button', { class: 'btn btn--sm btn--ghost', type: 'button', title: 'Fit', onclick: () => { ED.pps = null; renderTimeline(); } }, 'Fit'),
+    h('button', { class: 'btn btn--sm btn--ghost', type: 'button', title: 'Zoom in', onclick: () => { ED.pps = Math.min(600, ED.pps * 1.5); renderTimeline(); } }, '+'));
+  host.replaceChildren(bar, h('div', { class: 'tl-body' }, labels, sc));
+  sc.scrollLeft = scroll;
+  sc.addEventListener('pointerdown', tlPointer);
+}
+function tlTimeAt(e) { const sc = $('#tl-scroll'), r = sc.getBoundingClientRect(); return (e.clientX - r.left + sc.scrollLeft) / ED.pps; }
+function snapT(t, ignore) {
+  if (!ED.snap) return t;
+  const cands = [0, ED.t, ED.edl.dur];
+  for (const c of ED.edl.clips) cands.push(c.start, c.end);
+  if (ED.snapBeats && ED.beats) cands.push(...ED.beats);
+  let best = t, bd = 8 / ED.pps;
+  for (const c of cands) if (c !== ignore && Math.abs(c - t) < bd) { bd = Math.abs(c - t); best = c; }
+  return best;
+}
+function tlPointer(e) {
+  const blk = e.target.closest('.blk[data-type]');
+  if (!blk) {                                              /* ruler or empty track: scrub */
+    if (e.target.closest('.tr')) return;
+    pause(); seek(tlTimeAt(e));
+    const host = $('#tl-panel'); host.setPointerCapture(e.pointerId);
+    host.onpointermove = ev => seek(tlTimeAt(ev));
+    host.onpointerup = () => { host.onpointermove = null; host.onpointerup = null; };
+    return;
+  }
+  e.preventDefault();
+  const type = blk.dataset.type, idx = +blk.dataset.idx, r = blk.getBoundingClientRect(), x = e.clientX - r.left;
+  const edge = x < 7 ? 'l' : (r.width - x < 7 ? 'r' : 'm');
+  ED.sel = { type, idx }; ED.focusTransition = false;
+  const snap = JSON.stringify(S.P.preset), x0 = e.clientX, f = ED.fps;
+  let moved = false;
+  const st = {};
+  if (type === 'clip') { st.clips = clone(rawClips(ED.edl)); st.c = ED.edl.clips[idx]; }
+  else { st.item = type === 'intro' ? S.P.preset.intro : S.P.preset[ITEM_KEYS[type]][idx]; [st.t0, st.d0] = type === 'intro' ? [0, +(st.item.dur || 3)] : span(st.item, DEF_DUR[type]); st.orig = clone(st.item); }
+  const host = $('#tl-panel');                         /* re-renders replace the block; the panel keeps the capture */
+  host.setPointerCapture(e.pointerId);
+  host.onpointermove = ev => {
+    const px = ev.clientX - x0, dx = px / ED.pps;
+    if (Math.abs(px) > 3) moved = true; if (!moved) return;
+    if (type === 'clip') {
+      const clips = clone(st.clips), cl = clips[idx], o = st.clips[idx];
+      if (edge === 'm') { blk.style.transform = `translateX(${px}px)`; blk.classList.add('dragging'); return; }
+      if (edge === 'l') cl.in = snapFrame(clamp(o.in + dx, 0, o.out - 2 / f), f);
+      else { const endT = snapT(st.c.end + dx, st.c.end); cl.out = snapFrame(clamp(o.in + (endT - st.c.start), o.in + 2 / f, (S.P.plan || {}).source_duration || 1e9), f); }
+      S.P.preset.clips = clips; ED.model(); renderTimeline(); updateFrame(true);
+      const b2 = document.querySelector(`.blk[data-type="clip"][data-idx="${idx}"]`); if (b2) b2.classList.add('sel');
+    } else {
+      Object.assign(st.item, clone(st.orig));
+      let t = st.t0, d = st.d0;
+      if (edge === 'm') { t = snapT(st.t0 + dx); const te = snapT(t + d); if (te !== t + d && ED.snap) t = te - d; }
+      else if (edge === 'r') d = Math.max(0.2, snapT(st.t0 + st.d0 + dx) - st.t0);
+      else { t = Math.min(snapT(st.t0 + dx), st.t0 + st.d0 - 0.2); d = st.d0 - (t - st.t0); }
+      if (type === 'intro') { d = Math.max(0.5, d); t = 0; }
+      setItemTime(st.item, clamp(t, 0, ED.edl.dur), d, type);
+      renderTimeline(); updateFrame(true);
+    }
+  };
+  host.onpointerup = ev => {
+    host.onpointermove = null; host.onpointerup = null;
+    if (!moved) {                                          /* click: select, and put the playhead there */
+      pause(); seek(tlTimeAt(ev)); renderTimeline(); renderSide(); return;
+    }
+    if (type === 'clip' && edge === 'm') {                 /* drop: reorder by centre position */
+      const dx = (ev.clientX - x0) / ED.pps, centre = st.c.start + st.c.dur / 2 + dx;
+      const clips = clone(st.clips), [moving] = clips.splice(idx, 1);
+      const others = ED.edl.clips.filter((_, i) => i !== idx);
+      let to = others.findIndex(c => centre < c.start + c.dur / 2); if (to < 0) to = others.length;
+      clips.splice(to, 0, moving);
+      if (to === 0) delete clips[0].transition;
+      S.P.preset.clips = clips; ED.sel = { type: 'clip', idx: to };
+    }
+    pushUndo(snap); scheduleSave(); ED.refresh();
+  };
+}
+function splitHere() {
+  const clips = splitAt(rawClips(ED.edl), ED.t, ED.fps);
+  if (!clips) return flash('info', 'Nothing to split here', 'Put the playhead inside a clip, at least two frames from its ends.');
+  mutate(c => { c.clips = clips; });
+}
+function deleteSel() {
+  const s = ED.sel; if (!s) return flash('info', 'Select something first', 'Click a clip or an item in the timeline.');
+  if (s.type === 'clip') {
+    if (ED.edl.clips.length <= 1) return flash('warning', 'This is the last clip', 'An edit needs at least one clip.');
+    mutate(c => { const cl = clipsOf(c); cl.splice(s.idx, 1); if (cl[0]) delete cl[0].transition; });
+  } else if (s.type === 'intro') mutate(c => { c.intro = { ...(c.intro || {}), title: '' }; });
+  else mutate(c => { c[ITEM_KEYS[s.type]].splice(s.idx, 1); });
+  ED.sel = null; ED.refresh();
+}
+function addText() {
+  const t = Math.min(ED.t, Math.max(0, ED.edl.dur - 1));
+  mutate(c => { c.texts = [...(c.texts || []), { text: 'New text', at: round3(t), dur: 3, x: 0.5, y: 0.3, size: 0.06, font: 'display', color: 'white', box: 0, anim_in: 'fade', anim_out: 'fade' }]; });
+  ED.sel = { type: 'text', idx: S.P.preset.texts.length - 1 }; ED.refresh();
+}
+async function cutPauses() {
+  if (S.P.preset.clips && S.P.preset.clips.length && !confirm('Rebuild the timeline from the transcript? Manual trims, order, transitions and per-clip looks are replaced.')) return;
+  mutate(c => { delete c.clips; });
+}
+function joinAll() {
+  const [lo, hi] = (S.P.plan || {}).source_range || [0, (S.P.plan || {}).source_duration || 0];
+  if (S.P.preset.clips && S.P.preset.clips.length > 1 && !confirm('Replace the timeline with one clip of the whole recording?')) return;
+  mutate(c => { c.clips = [{ in: round3(lo), out: round3(hi) }]; });
+}
+async function analyseBeats() {
+  if (!(S.P.preset.music || {}).file) return flash('info', 'No music bed yet', 'Choose a track under Graphics > Music bed, then find its beats.');
+  try {
+    setSaveState('Finding beats');
+    const r = await api('/api/beats?name=' + encodeURIComponent(S.P.name));
+    if (r.error) return flash('warning', 'Could not find beats', [].concat(r.error).join(' '));
+    ED.beats = r.beats; ED.bpm = r.bpm; ED.snapBeats = true; setSaveState(`${r.beats.length} beats, ${r.bpm} BPM`);
+    renderTimeline();
+  } catch (e) { fail(e); }
+}
+function cutsToBeats() {
+  if (!ED.beats || !ED.beats.length) return;
+  let moved = 0;
+  mutate(c => {
+    const clips = clipsOf(c), f = ED.fps, srcDur = (S.P.plan || {}).source_duration || 1e9;
+    for (let i = 1; i < clips.length; i++) {
+      const E = buildEdl(clips, f), b = E.clips[i]; if (!b) break;
+      const beat = ED.beats.reduce((best, x) => Math.abs(x - b.start) < Math.abs(best - b.start) ? x : best, ED.beats[0]);
+      const delta = beat - b.start;
+      if (Math.abs(delta) < 0.5 / f || Math.abs(delta) > 0.3) continue;
+      const prev = clips[i - 1], out = snapFrame(clamp(prev.out + delta, prev.in + 2 / f, srcDur), f);
+      if (out !== prev.out) { prev.out = round3(out); moved++; }
+    }
+  });
+  flash('success', `${moved} cut${moved === 1 ? '' : 's'} moved onto the beat`, 'Each outgoing clip was trimmed or extended by up to 0.3 s. Check that no word got clipped; Ctrl+Z undoes it.');
+}
+
+/* ---- side panel: inspector and transcript */
+function slider(label, value, min, max, step, onchange, fmt = v => (+v).toFixed(2)) {
+  const out = h('span', { class: 'mono-sm' }, fmt(value));
+  const inp = h('input', { type: 'range', class: 'range', min, max, step, value, oninput: e => { out.textContent = fmt(e.target.value); onchange(+e.target.value); } });
+  inp.addEventListener('dblclick', () => { const d = inp.dataset.def; if (d !== undefined) { inp.value = d; out.textContent = fmt(d); onchange(+d); } });
+  return h('label', { class: 'field slider' }, h('span', { class: 'row', style: 'justify-content:space-between' }, h('span', { class: 'label' }, label), out), inp);
+}
+function sliderDef(el, def) { el.querySelector('input').dataset.def = def; el.title = 'Double-click to reset'; return el; }
+function lookControls(get, set, opts = {}) {
+  const L = get(), g = L.grade || {};
+  const live = (fn) => (v) => { fn(v); };
+  const rows = [];
+  if (opts.frame !== false) {
+    rows.push(sliderDef(slider('Zoom', L.zoom ?? 1, 1, 2.5, 0.01, live(v => set({ zoom: v })), v => (+v).toFixed(2) + 'x'), 1));
+    rows.push(sliderDef(slider('Focus x', (L.focus || [0.5, 0.4])[0], 0, 1, 0.01, live(v => set({ focus: [v, (get().focus || [0.5, 0.4])[1]] }))), 0.5));
+    rows.push(sliderDef(slider('Focus y', (L.focus || [0.5, 0.4])[1], 0, 1, 0.01, live(v => set({ focus: [(get().focus || [0.5, 0.4])[0], v] }))), 0.4));
+    rows.push(sliderDef(slider('Rotate (horizon)', L.rotate ?? 0, -10, 10, 0.1, live(v => set({ rotate: v })), v => (+v).toFixed(1) + '°'), 0));
+  }
+  const gset = (k) => (v) => set({ grade: { ...(get().grade || {}), [k]: v } });
+  rows.push(sliderDef(slider('Exposure', g.exposure ?? 0, -2, 2, 0.05, gset('exposure'), v => ((+v) >= 0 ? '+' : '') + (+v).toFixed(2) + ' EV'), 0));
+  rows.push(sliderDef(slider('Contrast', g.contrast ?? 1, 0.5, 1.6, 0.01, gset('contrast')), 1));
+  rows.push(sliderDef(slider('Saturation', g.saturation ?? 1, 0, 2, 0.01, gset('saturation')), 1));
+  rows.push(sliderDef(slider('Temperature', g.temperature ?? 0, -1, 1, 0.01, gset('temperature'), v => ((+v) > 0 ? 'warm ' : (+v) < 0 ? 'cool ' : '') + Math.abs(+v).toFixed(2)), 0));
+  rows.push(sliderDef(slider('Tint', g.tint ?? 0, -1, 1, 0.01, gset('tint'), v => ((+v) > 0 ? 'magenta ' : (+v) < 0 ? 'green ' : '') + Math.abs(+v).toFixed(2)), 0));
+  return h('div', { class: 'col', style: 'gap: var(--space-2)' }, rows);
+}
+function renderSide() {
+  const side = $('#side'); if (!side || !S.P) return;
+  const tabs = h('div', { class: 'tabs', role: 'tablist' }, [['inspector', 'Inspector'], ['transcript', 'Transcript']].map(([id, l]) => h('button', { class: 'tab', role: 'tab', type: 'button', 'aria-selected': ED.side === id ? 'true' : 'false', onclick: () => { ED.side = id; renderSide(); } }, l)));
+  const body = ED.side === 'transcript' ? transcriptPanel(S.P.kind) : inspector();
+  side.replaceChildren(tabs, body);
+  if (ED.side === 'transcript') setTimeout(() => { markWords(); highlightWord(ED.t, true); }, 0);
+}
+function inspector() {
+  const s = ED.sel, c = S.P.preset, wrap = h('div', { class: 'col insp' });
+  const live = (fn) => mutate(fn, { inspector: false });
+  if (s && s.type === 'clip' && ED.edl.clips[s.idx]) {
+    const i = s.idx, cl = ED.edl.clips[i];
+    const raw = () => ((S.P.preset.clips && S.P.preset.clips.length) ? S.P.preset.clips[i] : {}) || {};   /* read only */
+    const tr = cl.transition || {};
+    wrap.append(h('div', { class: 'row' }, h('span', { class: 'heading' }, `Clip ${i + 1} of ${ED.edl.clips.length}`), h('span', { class: 'grow' }),
+      h('button', { class: 'btn btn--sm', type: 'button', onclick: splitHere }, 'Split'), h('button', { class: 'btn btn--sm btn--danger', type: 'button', onclick: deleteSel }, 'Delete')),
+      h('div', { class: 'fields' },
+        field('Source in (s)', numInput(round3(cl.src_in), v => v !== null && live(cc => { clipsOf(cc)[i].in = snapFrame(clamp(v, 0, cl.src_out - 2 / ED.fps), ED.fps); }), { step: 1 / ED.fps, min: 0 })),
+        field('Source out (s)', numInput(round3(cl.src_out), v => v !== null && live(cc => { clipsOf(cc)[i].out = snapFrame(Math.max(v, cl.src_in + 2 / ED.fps), ED.fps); }), { step: 1 / ED.fps, min: 0 })),
+        field('Length', h('span', { class: 'mono', style: 'line-height:32px' }, fmtT(cl.dur)))));
+    if (i) {
+      const trSel = select(tr.type || 'cut', [['cut', 'Cut'], ...Object.entries(TRANS)], v => mutate(cc => { const r = clipsOf(cc)[i]; if (v === 'cut') delete r.transition; else r.transition = { type: v, dur: (r.transition || {}).dur ?? 0.5 }; }));
+      const tsec = h('section', { class: 'panel panel--raised col' + (ED.focusTransition ? ' focus' : '') }, h('div', { class: 'label' }, `Transition into clip ${i + 1}`),
+        h('div', { class: 'fields' }, field('Type', trSel), tr.type ? field('Seconds', numInput(tr.dur ?? 0.5, v => v && mutate(cc => { clipsOf(cc)[i].transition.dur = clamp(v, 0.04, 3); }), { step: 0.1, min: 0.04 })) : null),
+        h('span', { class: 'field__help' }, 'The incoming clip starts this much earlier, so the edit gets shorter. The preview shows dips as dips and every other type as a dissolve.'));
+      wrap.append(tsec);
+    }
+    const own = !!(raw().zoom || raw().focus || raw().rotate !== undefined || raw().grade);
+    wrap.append(h('div', { class: 'row' }, h('span', { class: 'label' }, 'Look of this clip'), h('span', { class: 'grow' }),
+      toggle('Own look', own, v => mutate(cc => { const r = clipsOf(cc)[i]; if (v) { const L = ED.looks[i]; r.zoom = round3(L.zoom / Math.max(1, +((cc.output || {}).zoom || 1))); r.focus = L.focus; r.rotate = L.rotate; r.grade = { ...(L.grade || {}) }; } else { delete r.zoom; delete r.focus; delete r.rotate; delete r.grade; } }))));
+    if (own) wrap.append(lookControls(() => { const r = raw(); return { zoom: r.zoom ?? 1, focus: r.focus, rotate: r.rotate ?? 0, grade: r.grade || {} }; },
+      p => live(cc => Object.assign(clipsOf(cc)[i], p))));
+    else wrap.append(h('span', { class: 'field__help' }, 'Uses the project look. Turn on "Own look" to frame, level or colour this clip on its own. Zoom here multiplies the project zoom.'));
+    return wrap;
+  }
+  if (s && s.type === 'text' && (c.texts || [])[s.idx]) {
+    const i = s.idx, it = c.texts[i], set = (k) => v => live(cc => { cc.texts[i][k] = v; });
+    const [a, d] = span(it, 3);
+    wrap.append(h('div', { class: 'row' }, h('span', { class: 'heading' }, 'Text'), h('span', { class: 'grow' }), h('button', { class: 'btn btn--sm btn--danger', type: 'button', onclick: deleteSel }, 'Delete')),
+      field('Text', h('textarea', { class: 'input', rows: 2, oninput: e => set('text')(e.target.value) }, it.text || '')),
+      h('div', { class: 'fields' },
+        field('Font', select(it.font || 'display', [['display', 'Chakra Petch'], ['sans', 'IBM Plex Sans'], ['mono', 'Share Tech Mono']], v => mutate(cc => { cc.texts[i].font = v; }, { inspector: false }))),
+        field('Colour', select(it.color || 'white', [['white', 'White'], ['cyan', 'Cyan'], ['magenta', 'Magenta'], ['black', 'Black']], v => mutate(cc => { cc.texts[i].color = v; }, { inspector: false }))),
+        field('Starts (s)', numInput(round3(a), v => v !== null && live(cc => setItemTime(cc.texts[i], clamp(v, 0, ED.edl.dur), d, 'text')), { step: 0.1, min: 0 })),
+        field('Seconds', numInput(round3(d), v => v && live(cc => setItemTime(cc.texts[i], a, v, 'text')), { step: 0.1, min: 0.2 }))),
+      sliderDef(slider('Size', it.size ?? 0.06, 0.02, 0.16, 0.002, set('size'), v => Math.round(v * ED.size[1]) + ' px'), 0.06),
+      sliderDef(slider('Box', it.box ?? 0, 0, 1, 0.05, set('box'), v => (+v ? Math.round(v * 100) + '%' : 'none')), 0),
+      sliderDef(slider('Across (x)', it.x ?? 0.5, 0, 1, 0.005, set('x')), 0.5),
+      sliderDef(slider('Down (y)', it.y ?? 0.5, 0, 1, 0.005, set('y')), 0.5),
+      h('div', { class: 'fields' },
+        field('In', select(it.anim_in || 'fade', ANIM_IN, v => mutate(cc => { cc.texts[i].anim_in = v; }, { inspector: false }))),
+        field('Out', select(it.anim_out || 'fade', ANIM_OUT, v => mutate(cc => { cc.texts[i].anim_out = v; }, { inspector: false })))),
+      sliderDef(slider('Animation', it.anim_dur ?? 0.4, 0.1, 1.5, 0.05, set('anim_dur'), v => (+v).toFixed(2) + ' s'), 0.4),
+      h('span', { class: 'field__help' }, 'Drag the text in the preview to place it. It snaps to the centre line.'));
+    return wrap;
+  }
+  if (s && s.type !== 'clip') {
+    const key = s.type === 'intro' ? null : ITEM_KEYS[s.type];
+    const it = s.type === 'intro' ? c.intro : (c[key] || [])[s.idx];
+    if (it) {
+      const set = (k) => v => live(cc => { (s.type === 'intro' ? cc.intro : cc[key][s.idx])[k] = v; });
+      const names = { intro: 'Intro title', lower_thirds: 'Lower third', titles: 'Card', chapters: 'Chapter', broll: 'B-roll' };
+      const fieldsFor = { intro: [['title', 'Title'], ['subtitle', 'Subtitle']], lower_thirds: [['name', 'Name'], ['title', 'Role']], titles: [['label', 'Label'], ['text', 'Text']], chapters: [['title', 'Title']] }[s.type] || [];
+      const [a, d] = s.type === 'intro' ? [0, +(it.dur || 3)] : span(it, DEF_DUR[s.type]);
+      wrap.append(h('div', { class: 'row' }, h('span', { class: 'heading' }, names[s.type]), h('span', { class: 'grow' }), h('button', { class: 'btn btn--sm btn--danger', type: 'button', onclick: deleteSel }, 'Delete')),
+        ...fieldsFor.map(([k, l]) => field(l, textInput(it[k], set(k)))),
+        s.type === 'broll' ? pathField('File', it.file, v => mutate(cc => { cc.broll[s.idx].file = v; }, { inspector: false }), { filter: 'media' }) : null,
+        h('div', { class: 'fields' },
+          s.type !== 'intro' ? field('Starts (s)', numInput(round3(a), v => v !== null && live(cc => setItemTime(cc[key][s.idx], clamp(v, 0, ED.edl.dur), d, s.type)), { step: 0.1, min: 0 })) : null,
+          s.type !== 'chapters' ? field('Seconds', numInput(round3(d), v => v && live(cc => setItemTime(s.type === 'intro' ? cc.intro : cc[key][s.idx], a, v, s.type)), { step: 0.1, min: 0.2 })) : null,
+          s.type === 'broll' ? field('Clip from (s)', numInput(it.from ?? 0, v => live(cc => { cc.broll[s.idx].from = v || 0; }), { step: 0.1, min: 0 })) : null,
+          s.type !== 'broll' ? field('Animation', select(it.anim || (s.type === 'lower_thirds' ? 'slide_right' : 'fade'), GFX_ANIM, v => mutate(cc => { (s.type === 'intro' ? cc.intro : cc[key][s.idx]).anim = v; }, { inspector: false }))) : null),
+        it.at_src !== undefined ? h('span', { class: 'field__help' }, 'Anchored to the recording: it moves with the words when the cut changes.') : null);
+      return wrap;
+    }
+  }
+  /* nothing selected: project look and captions */
+  const o = c.output || {}, cap = (c.captions && typeof c.captions === 'object') ? c.captions : {}, st = (S.P.plan || {}).caption_style || {};
+  const capMode = c.captions === false ? 'off' : (cap.mode || (S.P.kind === 'interview' ? 'words' : 'lines'));
+  const setCap = (k) => v => live(cc => { cc.captions = { ...(typeof cc.captions === 'object' && cc.captions ? cc.captions : {}), [k]: v }; });
+  const punch = { ...DEF_PUNCH[S.P.kind], ...(c.punch || {}) };
+  wrap.append(h('span', { class: 'heading' }, 'Project look'),
+    h('span', { class: 'field__help' }, 'Applies to every clip without its own look. Click a clip in the timeline to change just that one.'),
+    h('div', { class: 'fields' },
+      field('Aspect', select(o.aspect || (S.P.kind === 'interview' ? '9:16' : '16:9'), [['9:16', '9:16'], ['16:9', '16:9'], ['1:1', '1:1'], ['4:5', '4:5']], v => mutate(cc => { cc.output = { ...(cc.output || {}), aspect: v }; delete cc.output.size; }, { render: true }))),
+      field('Cut framing', select(punch.mode, [['alternate', 'Wide / tight'], ['off', 'Same']], v => live(cc => { cc.punch = { ...(cc.punch || {}), mode: v }; })))),
+    lookControls(() => ({ zoom: (S.P.preset.output || {}).zoom ?? 1, focus: (S.P.preset.output || {}).focus, rotate: (S.P.preset.output || {}).rotate ?? 0, grade: S.P.preset.grade || {} }),
+      p => live(cc => { if ('grade' in p) cc.grade = p.grade; else cc.output = { ...(cc.output || {}), ...p }; })),
+    h('hr', { class: 'sep' }),
+    h('span', { class: 'heading' }, 'Captions'),
+    h('div', { class: 'fields' },
+      field('Style', select(capMode, [['words', 'Words'], ['lines', 'Subtitle lines'], ['off', 'Off']], v => mutate(cc => { cc.captions = { ...(typeof cc.captions === 'object' && cc.captions ? cc.captions : {}), mode: v }; }, { inspector: false }))),
+      field('Colour', select(cap.color || st.color || 'white', [['white', 'White'], ['cyan', 'Cyan'], ['magenta', 'Magenta']], setCap('color'))),
+      capMode === 'words' ? field('Spoken word', select(cap.highlight || st.highlight || 'cyan', [['cyan', 'Cyan'], ['magenta', 'Magenta'], ['white', 'White']], setCap('highlight'))) : null,
+      capMode === 'words' ? field('Words at once', select(cap.max_words || st.max_words || 3, [[1, '1'], [2, '2'], [3, '3'], [4, '4'], [5, '5']], v => setCap('max_words')(+v))) : null),
+    capMode !== 'off' ? sliderDef(slider('Caption size', cap.size ?? st.size ?? 0.044, 0.02, 0.09, 0.001, setCap('size'), v => Math.round(v * ED.size[1]) + ' px'), st.size ?? 0.044) : null,
+    capMode !== 'off' ? sliderDef(slider('Caption height', cap.y ?? st.y ?? 0.7, 0.3, 0.97, 0.005, setCap('y'), v => Math.round(v * 100) + '%'), st.y ?? 0.7) : null,
+    capMode !== 'off' ? toggle('Uppercase', !!(cap.uppercase ?? st.uppercase), setCap('uppercase')) : null,
+    h('span', { class: 'field__help' }, 'Switching between words and lines shows after the save (half a second).'));
+  return wrap;
+}
+
 function transcribeRow(fmt) {
   const f = { model: 'small.en', fillers: fmt === 'interview' };
   return h('div', { class: 'row' },
@@ -660,14 +1554,13 @@ function transcribeRow(fmt) {
 function updateStats() {
   const el = $('#stats'); if (!el || !S.P) return;
   const p = S.P.plan || {};
-  const stat = (label, value, unit) => h('div', { class: 'panel panel--raised' }, h('div', { class: 'label' }, label), h('div', {}, h('span', { class: 'stat' }, value), unit ? h('span', { class: 'stat__unit' }, unit) : null));
-  el.replaceChildren(stat('Source', fmtDur(p.source_duration)), stat('Edit', fmtDur(p.edit_duration)),
-    stat('Cuts', p.cuts_count ?? '–'), stat('Fillers', (p.filler_idx || []).length, 'cut'));
+  el.textContent = `Source ${fmtDur(p.source_duration)} | Edit ${fmtDur(ED.edl.dur)} | ${ED.edl.clips.length} clips | ${(p.filler_idx || []).length} fillers cut`;
 }
 
 let SEL = null;   // {a, b} word indices (inclusive)
 function transcriptPanel(fmt) {
   const P = S.P, words = P.words;
+  if (!words) return h('div', { class: 'col' }, alertBox('info', 'No transcript yet', 'Transcribe the recording to cut by text and get captions. small.en is a good default; tiny.en is fastest for a test.'), transcribeRow(fmt));
   const ts = h('div', { class: 'ts', id: 'ts' });
   let para = h('p'); let last = -1;
   words.forEach((w, i) => {
@@ -691,13 +1584,16 @@ function transcriptPanel(fmt) {
     SEL = { a: Math.min(anchor, i), b: Math.max(anchor, i) }; markSel();
   });
   window.onmouseup = () => {
-    if (dragging && !moved && SEL) { const v = $('#src-video'); if (v) { v.currentTime = Math.max(0, words[SEL.a].start - 0.05); } }
+    if (dragging && !moved && SEL) {
+      const t = toEdit(ED.edl, (words[SEL.a].start + words[SEL.a].end) / 2);
+      if (t === null) flash('info', 'That word is cut', 'Restore it to hear it in the edit.'); else { pause(); seek(Math.max(0, t - (words[SEL.a].end - words[SEL.a].start) / 2)); }
+    }
     dragging = false;
   };
   const isPres = fmt === 'presentation';
   const btn = (label, fn, cls = '', title) => h('button', { class: 'btn btn--sm ' + cls, type: 'button', title, onclick: () => { if (!SEL) return flash('info', 'Select words first', 'Click a word, then drag or shift-click to the last word.'); fn(SEL.a, SEL.b); } }, label);
   const bar = h('div', { class: 'ts-bar' },
-    h('span', { class: 'mono-sm muted', id: 'sel-info' }, 'Click to play from a word. Drag to select.'),
+    h('span', { class: 'mono-sm muted', id: 'sel-info' }, 'Click a word to jump there. Drag to select.'),
     h('span', { class: 'grow' }),
     btn('Cut', cutSel, '', 'Remove the selected words (Delete)'),
     btn('Restore', restoreSel, 'btn--ghost', 'Bring back cut words in the selection'),
@@ -705,14 +1601,13 @@ function transcriptPanel(fmt) {
     isPres ? null : btn('Card', (a, b) => addAt('card', a, b)),
     btn('Lower third', (a) => addAt('lt', a)),
     btn('B-roll', (a, b) => addAt('broll', a, b)),
+    btn('Text', (a, b) => addAt('text', a, b), '', 'A text overlay with these words, timed to them'),
     isPres && S.P.preset.screen ? btn('Slides', (a) => addAt('slides', a)) : null,
     isPres && S.P.preset.screen ? btn('Speaker', (a) => addAt('speaker', a)) : null,
     btn('Fix word', fixWord, 'btn--ghost', 'Correct a misheard word (double-click a word works too)'));
   ts.addEventListener('dblclick', e => { const el = e.target.closest('.w'); if (el) { SEL = { a: +el.dataset.i, b: +el.dataset.i }; fixWord(SEL.a, SEL.b); } });
-  setTimeout(() => { markWords(); markSel(); }, 0);
-  return h('section', { class: 'panel col' },
-    h('h2', { class: 'panel__title' }, 'Transcript', h('span', { class: 'legend mono-sm' },
-      h('span', {}, h('span', { class: 'w cut' }, 'cut'), ' removed'), h('span', {}, h('span', { class: 'w filler' }, 'um'), ' filler'), h('span', {}, h('span', { class: 'chip' }, 'LT'), ' graphic'))),
+  return h('div', { class: 'col', style: 'gap: var(--space-2)' },
+    h('div', { class: 'legend mono-sm' }, h('span', {}, h('span', { class: 'w cut' }, 'cut'), ' not in the edit'), h('span', {}, h('span', { class: 'w filler' }, 'um'), ' filler'), h('span', {}, h('span', { class: 'chip' }, 'LT'), ' graphic')),
     bar, ts, h('details', {}, h('summary', { class: 'label' }, 'Transcribe again'), h('div', { style: 'margin-top: var(--space-3)' }, transcribeRow(fmt))));
 }
 function markSel() {
@@ -723,15 +1618,13 @@ function markSel() {
   const info = $('#sel-info');
   if (info) info.textContent = `${fmtT(words[SEL.a].start)}–${fmtT(words[SEL.b].end)} | ${SEL.b - SEL.a + 1} word${SEL.b > SEL.a ? 's' : ''}`;
 }
-function inCuts(w, cuts) { const m = (w.start + w.end) / 2; return cuts.some(([a, b]) => a <= m && m <= b); }
 function markWords() {
-  const P = S.P; if (!P || !P.words) return;
-  const cuts = P.preset.cuts || [];
+  const P = S.P; if (!P || !P.words || !$('#ts')) return;
   const fill = new Set(((P.plan || {}).filler_idx) || []);
   document.querySelectorAll('.ts .chip').forEach(c => c.remove());
   document.querySelectorAll('.w[data-i]').forEach(el => {
     const i = +el.dataset.i, w = P.words[i];
-    el.classList.toggle('cut', inCuts(w, cuts));
+    el.classList.toggle('cut', toEdit(ED.edl, (w.start + w.end) / 2) === null);
     el.classList.toggle('filler', fill.has(i));
     el.textContent = w.w;
   });
@@ -740,12 +1633,25 @@ function markWords() {
   (c.titles || []).forEach(x => { if (x.at_src !== undefined) markers.push([x.at_src, 'Card']); });
   (c.chapters || []).forEach(x => markers.push([x.at_src ?? 0, 'Ch ' + (x.title || '')]));
   (c.broll || []).forEach(x => { if (x.at_src !== undefined) markers.push([x.at_src, 'B-roll']); });
+  (c.texts || []).forEach(x => { if (x.at_src !== undefined) markers.push([x.at_src, 'Text']); });
   ((c.screen || {}).layouts || []).forEach(x => markers.push([x.at_src ?? 0, x.layout === 'screen' ? 'Slides' : 'Speaker']));
   for (const [t, label] of markers) {
     const i = P.words.findIndex(w => w.end > t);
     const el = document.querySelector(`.w[data-i="${i < 0 ? P.words.length - 1 : i}"]`);
     if (el) el.before(h('span', { class: 'chip', title: `${label} at ${fmtT(t)}` }, label.slice(0, 22)));
   }
+}
+let lastWordEl = null;
+function highlightWord(t, scroll) {
+  if (!$('#ts') || !S.P.words) return;
+  const [i, src] = t < ED.edl.dur ? srcAt(ED.edl, t) : [0, -1];
+  const ws = S.P.words; let idx = -1;
+  for (let k = 0; k < ws.length; k++) { if (ws[k].start <= src + 0.02 && src <= ws[k].end + 0.15) idx = k; if (ws[k].start > src) break; }
+  const el = idx >= 0 ? document.querySelector(`.w[data-i="${idx}"]`) : null;
+  if (el === lastWordEl) return;
+  if (lastWordEl) lastWordEl.classList.remove('now');
+  if (el) { el.classList.add('now'); if (PL.playing || scroll) el.scrollIntoView({ block: 'nearest' }); }
+  lastWordEl = el;
 }
 function mergeRanges(rs) {
   const out = [];
@@ -755,16 +1661,26 @@ function mergeRanges(rs) {
   }
   return out.map(([a, b]) => [round3(a), round3(b)]);
 }
-function cutSel(a, b) { const w = S.P.words; mutate(c => { c.cuts = mergeRanges([...(c.cuts || []), [w[a].start, w[b].end]]); }); }
-function restoreSel(a, b) { const w = S.P.words, lo = w[a].start, hi = w[b].end; mutate(c => { c.cuts = (c.cuts || []).filter(([x, y]) => y < lo || x > hi); }); }
+const manual = () => !!(S.P.preset.clips && S.P.preset.clips.length);
+function cutSel(a, b) {
+  const w = S.P.words, lo = w[a].start, hi = w[b].end;
+  mutate(c => { if (manual()) c.clips = cutRange(c.clips, lo, hi); else c.cuts = mergeRanges([...(c.cuts || []), [lo, hi]]); });
+}
+function restoreSel(a, b) {
+  const w = S.P.words, lo = w[a].start, hi = w[b].end;
+  mutate(c => {
+    if (manual()) c.clips = restoreRange(c.clips, round3(Math.max(0, lo - 0.12)), round3(hi + 0.22), ED.fps);
+    else c.cuts = (c.cuts || []).filter(([x, y]) => y < lo || x > hi);
+  });
+}
 function selText(a, b) { return S.P.words.slice(a, b + 1).map(w => w.w).join(' ').replace(/\s+([,.!?])/g, '$1'); }
 function cutToCard(a, b) {
   const w = S.P.words, n = (S.P.preset.titles || []).length + 1;
   mutate(c => {
-    c.cuts = mergeRanges([...(c.cuts || []), [w[a].start, w[b].end]]);
+    if (manual()) c.clips = cutRange(c.clips, w[a].start, w[b].end); else c.cuts = mergeRanges([...(c.cuts || []), [w[a].start, w[b].end]]);
     c.titles = [...(c.titles || []), { label: `Question ${n}`, text: selText(a, b), at_src: round3(w[a].start), dur: 2.6 }];
   });
-  flash('success', 'Cut to card', `The words are cut and shown as "Question ${n}". Edit the text under Graphics.`);
+  flash('success', 'Cut to card', `The words are cut and shown as "Question ${n}". Click it in the timeline to edit.`);
 }
 async function addAt(kind, a, b) {
   const w = S.P.words, t = round3(w[a].start);
@@ -777,11 +1693,16 @@ async function addAt(kind, a, b) {
   if (kind === 'lt') {
     const prev = (S.P.preset.lower_thirds || []).slice(-1)[0] || {};
     mutate(c => { c.lower_thirds = [...(c.lower_thirds || []), { name: prev.name || 'Name', title: prev.title || 'Role, Company', at_src: t, dur: 4.5 }]; });
-    return flash('success', 'Lower third added', `At ${fmtT(t)}. Set the name and role under Graphics.`);
+    ED.sel = { type: 'lower_thirds', idx: S.P.preset.lower_thirds.length - 1 }; ED.side = 'inspector'; return ED.refresh();
   }
   if (kind === 'card') {
     mutate(c => { c.titles = [...(c.titles || []), { label: '', text: selText(a, b), at_src: t, dur: 2.6 }]; });
-    return flash('success', 'Card added', `At ${fmtT(t)}. Edit it under Graphics.`);
+    ED.sel = { type: 'titles', idx: S.P.preset.titles.length - 1 }; ED.side = 'inspector'; return ED.refresh();
+  }
+  if (kind === 'text') {
+    const e0 = toEditFwd(ED.edl, w[a].start), e1 = toEditFwd(ED.edl, w[b].end);
+    mutate(c => { c.texts = [...(c.texts || []), { text: selText(a, b), at_src: t, dur: round3(Math.max(1, e1 - e0 + 0.3)), x: 0.5, y: 0.3, size: 0.06, font: 'display', color: 'white', box: 0, anim_in: 'pop', anim_out: 'fade' }]; });
+    ED.sel = { type: 'text', idx: S.P.preset.texts.length - 1 }; ED.side = 'inspector'; return ED.refresh();
   }
   if (kind === 'chapter') {
     const title = await ask('New chapter', 'Chapter title', selText(a, Math.min(b, a + 6)));
@@ -798,43 +1719,20 @@ async function fixWord(a) {
   const v = await ask('Fix word', `Word at ${fmtT(w.start)}`, w.w);
   if (v === null || !v.trim()) return;
   w.w = v.trim();
-  try { await api('/api/transcript', { name: S.P.name, words: S.P.words }); markWords(); setSaveState('Transcript saved'); }
+  try { await api('/api/transcript', { name: S.P.name, words: S.P.words }); ED.refresh({ inspector: false }); setSaveState('Transcript saved'); }
   catch (e) { fail(e); }
 }
-let rafId = null;
-function attachPlayer(video) {
-  const words = S.P && S.P.words;
-  cancelAnimationFrame(rafId);
-  const starts = words ? words.map(w => w.start) : [];
-  let lastIdx = -1;
-  const tick = () => {
-    if (!document.body.contains(video)) return;
-    const t = video.currentTime;
-    const tc = $('#now-tc'); if (tc) tc.textContent = fmtT(t);
-    const segs = ((S.P || {}).plan || {}).segments;
-    if (!video.paused && segs && segs.length && store.get('preview-edit', true)) {
-      const inside = segs.some(([a, b]) => t >= a - 0.02 && t < b);
-      if (!inside) { const next = segs.find(([a]) => a > t); if (next) video.currentTime = next[0]; else video.pause(); }
-    }
-    if (words) {
-      let lo = 0, hi = starts.length - 1, idx = -1;
-      while (lo <= hi) { const m = (lo + hi) >> 1; if (starts[m] <= t) { idx = m; lo = m + 1; } else hi = m - 1; }
-      if (idx !== lastIdx) {
-        const old = document.querySelector('.w.now'); if (old) old.classList.remove('now');
-        const el = document.querySelector(`.w[data-i="${idx}"]`);
-        if (el && t <= words[idx].end + 0.3) { el.classList.add('now'); if (!video.paused) el.scrollIntoView({ block: 'nearest' }); }
-        lastIdx = idx;
-      }
-    }
-    rafId = requestAnimationFrame(tick);
-  };
-  rafId = requestAnimationFrame(tick);
-}
 document.addEventListener('keydown', e => {
-  if (e.target.matches('input, textarea, select') || !S.P) return;
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); doUndo(); }
-  if (S.tab === 'edit' && SEL && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); cutSel(SEL.a, SEL.b); }
-  if (e.key === 'Escape') { SEL = null; markSel(); const i = $('#sel-info'); if (i) i.textContent = 'Click to play from a word. Drag to select.'; }
+  if (e.target.matches('input, textarea, select') || !S.P || S.P.kind === 'reel' || !['interview', 'presentation'].includes(S.view)) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); doUndo(); return; }
+  if (S.tab !== 'edit') return;
+  if (e.key === ' ') { e.preventDefault(); PL.playing ? pause() : play(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); stepFrames(e.shiftKey ? -ED.fps : -1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); stepFrames(e.shiftKey ? ED.fps : 1); }
+  else if (e.key.toLowerCase() === 's' && !e.ctrlKey) splitHere();
+  else if (e.key.toLowerCase() === 't' && !e.ctrlKey) addText();
+  else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); if (SEL && ED.side === 'transcript') cutSel(SEL.a, SEL.b); else deleteSel(); }
+  else if (e.key === 'Escape') { SEL = null; ED.sel = null; markSel(); ED.refresh(); }
 });
 
 /* ---- Graphics tab */
@@ -846,7 +1744,7 @@ function listEditor(title, key, cols, blank, help) {
       numInput(row[k], v => mutate(c => { c[key][i][k] = v ?? 0; }), { step: 0.1, min: 0 }));
   };
   return h('section', { class: 'panel col', style: 'padding-bottom: var(--space-3)' },
-    h('h2', { class: 'panel__title' }, title, h('button', { class: 'btn btn--sm', type: 'button', onclick: () => mutate(c => { c[key] = [...(c[key] || []), clone(blank)]; }, true) }, 'Add')),
+    h('h2', { class: 'panel__title' }, title, h('button', { class: 'btn btn--sm', type: 'button', onclick: () => mutate(c => { c[key] = [...(c[key] || []), clone(blank)]; }, { render: true }) }, 'Add')),
     help ? h('span', { class: 'field__help' }, help) : null,
     rows.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
       h('thead', {}, h('tr', {}, cols.map(c => h('th', {}, c.label)), h('th', {}, ''))),
@@ -855,8 +1753,9 @@ function listEditor(title, key, cols, blank, help) {
           c.type === 'time' ? timeCell(row, i)
             : c.type === 'num' ? numInput(row[c.key], v => mutate(cc => { cc[key][i][c.key] = v; }), { step: 0.1, min: 0 })
               : c.type === 'file' ? h('span', { class: 'mono-sm', title: row[c.key] }, base(row[c.key]))
-                : textInput(row[c.key], v => mutate(cc => { cc[key][i][c.key] = v; })))),
-        h('td', { style: 'width:1%' }, h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => mutate(c => { c[key].splice(i, 1); }, true) }, 'Remove')))))))
+                : c.type === 'anim' ? select(row[c.key] || c.def, c.options, v => mutate(cc => { cc[key][i][c.key] = v; }))
+                  : textInput(row[c.key], v => mutate(cc => { cc[key][i][c.key] = v; })))),
+        h('td', { style: 'width:1%' }, h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => mutate(c => { c[key].splice(i, 1); }, { render: true }) }, 'Remove')))))))
       : h('div', { class: 'body-sm' }, 'None.'));
 }
 function tabGraphics(fmt) {
@@ -864,6 +1763,7 @@ function tabGraphics(fmt) {
   const intro = c.intro || {};
   const end = c.end;
   const music = c.music || {};
+  const anim = (def, opts = GFX_ANIM) => ({ key: 'anim', label: 'Animation', type: 'anim', options: opts, def, width: '150px' });
   return h('div', { class: 'col', style: 'gap: var(--space-5)' },
     h('div', { class: 'col', style: 'gap: var(--space-5)' },
       h('section', { class: 'panel col' },
@@ -872,115 +1772,105 @@ function tabGraphics(fmt) {
           field('Title', textInput(intro.title, v => mutate(cc => { cc.intro = { ...(cc.intro || {}), title: v }; }), { placeholder: 'Empty: no intro' })),
           field('Subtitle', textInput(intro.subtitle, v => mutate(cc => { cc.intro = { ...(cc.intro || {}), subtitle: v }; })))),
         h('div', { class: 'fields' }, field('Seconds', numInput(intro.dur, v => mutate(cc => { cc.intro = { ...(cc.intro || {}), dur: v }; }), { min: 0.5, step: 0.5, placeholder: '3' })))),
-      listEditor('Lower thirds', 'lower_thirds', [{ key: 'name', label: 'Name' }, { key: 'title', label: 'Role' }, { key: 'at', label: 'At (s)', type: 'time', width: '150px' }, { key: 'dur', label: 'Secs', type: 'num', width: '90px' }],
+      listEditor('Text overlays', 'texts', [{ key: 'text', label: 'Text' }, { key: 'at', label: 'At (s)', type: 'time', width: '150px' }, { key: 'dur', label: 'Secs', type: 'num', width: '90px' },
+        { key: 'anim_in', label: 'In', type: 'anim', options: ANIM_IN, def: 'fade', width: '140px' }, { key: 'anim_out', label: 'Out', type: 'anim', options: ANIM_OUT, def: 'fade', width: '140px' }],
+        { text: 'Text', at: 0, dur: 3, x: 0.5, y: 0.3, size: 0.06, font: 'display', color: 'white', box: 0, anim_in: 'fade', anim_out: 'fade' }, 'Font, colour, size and position: select the text in the Edit tab (or drag it in the preview).'),
+      listEditor('Lower thirds', 'lower_thirds', [{ key: 'name', label: 'Name' }, { key: 'title', label: 'Role' }, { key: 'at', label: 'At (s)', type: 'time', width: '150px' }, { key: 'dur', label: 'Secs', type: 'num', width: '90px' }, anim('slide_right')],
         { name: 'Name', title: 'Role, Company', at: 0.6, dur: 4.5 }, 'Tip: select a word in the transcript and press "Lower third" to place one there.'),
       fmt === 'presentation'
         ? h('div', { class: 'col' }, listEditor('Chapters', 'chapters', [{ key: 'title', label: 'Title' }, { key: 'at_src', label: 'At (s)', type: 'time', width: '150px' }], { title: 'Chapter', at_src: 0 },
           'Each one becomes a top-left tag and a line in <name>.chapters.txt (first pinned to 0:00 for YouTube).'),
           toggle('Show chapter tags on screen', c.chapter_cards !== false, v => mutate(cc => { cc.chapter_cards = v; })))
         : null,
-      listEditor(fmt === 'presentation' ? 'Cards' : 'Question cards', 'titles', [{ key: 'label', label: 'Label' }, { key: 'text', label: 'Text' }, { key: 'at', label: 'At (s)', type: 'time', width: '150px' }, { key: 'dur', label: 'Secs', type: 'num', width: '90px' }],
+      listEditor(fmt === 'presentation' ? 'Cards' : 'Question cards', 'titles', [{ key: 'label', label: 'Label' }, { key: 'text', label: 'Text' }, { key: 'at', label: 'At (s)', type: 'time', width: '150px' }, { key: 'dur', label: 'Secs', type: 'num', width: '90px' }, anim('fade')],
         { label: '', text: 'Card text', at: 0, dur: 2.6 }, 'Shown over dimmed footage. "Cut to card" in the transcript makes one from the interviewer’s question.'),
-      listEditor('B-roll', 'broll', [{ key: 'file', label: 'File', type: 'file' }, { key: 'at', label: 'At (s)', type: 'time', width: '150px' }, { key: 'end_src', label: 'Until (src s)', type: 'num', width: '110px' }, { key: 'from', label: 'Clip from', type: 'num', width: '90px' }],
-        { file: '', at_src: 0, end_src: 3, from: 0 }, 'Add from the transcript ("B-roll" on a selection) to pick the file. Photos and clips both work; the sound stays on the speaker.')),
+      listEditor('B-roll', 'broll', [{ key: 'file', label: 'File', type: 'file' }, { key: 'at', label: 'At (s)', type: 'time', width: '150px' }, { key: 'dur', label: 'Secs', type: 'num', width: '90px' }, { key: 'from', label: 'Clip from', type: 'num', width: '90px' }],
+        { file: '', at_src: 0, dur: 3, from: 0 }, 'Add from the transcript ("B-roll" on a selection) to pick the file. Photos and clips both work; the sound stays on the speaker.')),
     h('div', { class: 'grid2' },
       h('section', { class: 'panel col' },
         h('h2', { class: 'panel__title' }, 'Music bed'),
-        pathField('Track', music.file, v => mutate(cc => { cc.music = { ...(cc.music || {}), file: v }; }), { filter: 'audio', clearable: true, placeholder: 'Optional' }),
-        h('div', { class: 'fields' }, field('Level (dB)', numInput(music.db, v => mutate(cc => { cc.music = { ...(cc.music || {}), db: v }; }), { step: 1, placeholder: '-24' }))),
-        toggle('Duck under speech', music.duck !== false, v => mutate(cc => { cc.music = { ...(cc.music || {}), duck: v }; }))),
+        pathField('Track', music.file, v => mutate(cc => { cc.music = { ...(cc.music || {}), file: v }; }, { render: true }), { filter: 'audio', clearable: true, placeholder: 'Optional' }),
+        h('div', { class: 'fields' },
+          field('Level (dB)', numInput(music.db, v => mutate(cc => { cc.music = { ...(cc.music || {}), db: v }; }), { step: 1, placeholder: '-24' })),
+          field('Start in track (s)', numInput(music.start, v => mutate(cc => { cc.music = { ...(cc.music || {}), start: v || 0 }; }), { step: 0.1, min: 0, placeholder: '0' }))),
+        toggle('Duck under speech', music.duck !== false, v => mutate(cc => { cc.music = { ...(cc.music || {}), duck: v }; })),
+        h('span', { class: 'field__help' }, 'Find its beats from the timeline ("Find beats") to snap cuts and text to the music.')),
       h('section', { class: 'panel col' },
-        h('h2', { class: 'panel__title' }, 'End card', toggle('On', !!end, v => mutate(cc => { cc.end = v ? { lines: ['Thanks for watching'], handle: '@accurova', dur: 3 } : null; }, true))),
+        h('h2', { class: 'panel__title' }, 'End card', toggle('On', !!end, v => mutate(cc => { cc.end = v ? { lines: ['Thanks for watching'], handle: '@accurova', dur: 3 } : null; }, { render: true }))),
         end ? h('div', { class: 'col' },
           field('Lines', h('textarea', { class: 'input', rows: 3, oninput: e => mutate(cc => { cc.end.lines = e.target.value.split('\n').filter(Boolean); }) }, (end.lines || []).join('\n')), 'First line large, the rest smaller. One per line.'),
           h('div', { class: 'fields' },
             field('Handle', textInput(end.handle, v => mutate(cc => { cc.end.handle = v; }), { mono: true })),
-            field('Seconds', numInput(end.dur, v => mutate(cc => { cc.end.dur = v; }), { min: 1, step: 0.5 })))) : h('span', { class: 'body-sm' }, 'No end card.'))));
+            field('Seconds', numInput(end.dur, v => mutate(cc => { cc.end.dur = v; }), { min: 1, step: 0.5 })))) : h('span', { class: 'body-sm' }, 'No end card.'))),
+    fmt === 'presentation' ? slidesPanel() : null);
 }
-
-/* ---- Output tab */
-function tabOutput(fmt) {
-  const c = S.P.preset, o = c.output || {}, cap = (c.captions && typeof c.captions === 'object') ? c.captions : {}, punch = c.punch || {}, clip = c.clip || {};
-  const setO = (k, v) => mutate(cc => { cc.output = { ...(cc.output || {}), [k]: v }; });
-  const focus = o.focus || [0.5, 0.4];
-  const scr = c.screen;
-  const jsonArea = h('textarea', { class: 'input input--mono', rows: 18, spellcheck: 'false' }, JSON.stringify(c, null, 2));
-  return h('div', { class: 'grid2' },
-    h('div', { class: 'col' },
-      h('section', { class: 'panel col' },
-        h('h2', { class: 'panel__title' }, 'Frame'),
-        h('div', { class: 'fields' },
-          field('Aspect', select(o.aspect || (fmt === 'interview' ? '9:16' : '16:9'), [['9:16', '9:16 vertical'], ['16:9', '16:9'], ['1:1', '1:1'], ['4:5', '4:5']], v => setO('aspect', v))),
-          field('Frame rate', select(o.fps || 30, [[24, '24'], [25, '25'], [30, '30'], [50, '50'], [60, '60']], v => setO('fps', Number(v)))),
-          field('Zoom', numInput(o.zoom, v => setO('zoom', v), { min: 1, step: 0.05, placeholder: '1.0' })),
-          field('Focus x', numInput(focus[0], v => setO('focus', [v ?? 0.5, focus[1]]), { min: 0, max: 1, step: 0.05 })),
-          field('Focus y', numInput(focus[1], v => setO('focus', [focus[0], v ?? 0.4]), { min: 0, max: 1, step: 0.05 }))),
-        h('span', { class: 'field__help' }, 'Focus = the point to keep in view (fractions of the frame), e.g. the face. Zoom above 1 crops in on a wide shot.')),
-      h('section', { class: 'panel col' },
-        h('h2', { class: 'panel__title' }, 'Framing at cuts'),
-        h('div', { class: 'fields' },
-          field('Mode', select(punch.mode || (fmt === 'interview' ? 'alternate' : 'off'), [['alternate', 'Alternate wide / tight'], ['off', 'Off']], v => mutate(cc => { cc.punch = { ...(cc.punch || {}), mode: v }; }))),
-          field('Tight scale', numInput(punch.scale, v => mutate(cc => { cc.punch = { ...(cc.punch || {}), scale: v }; }), { min: 1, max: 2, step: 0.01, placeholder: '1.12' }))),
-        h('span', { class: 'field__help' }, 'Switching framing at each jump cut hides the jump.')),
-      h('section', { class: 'panel col' },
-        h('h2', { class: 'panel__title' }, 'Captions'),
-        h('div', { class: 'fields' },
-          field('Style', select(c.captions === false ? 'off' : (cap.mode || (fmt === 'interview' ? 'words' : 'lines')), [['words', 'Words (highlighted)'], ['lines', 'Subtitle lines'], ['off', 'Off']], v => mutate(cc => { cc.captions = { ...(typeof cc.captions === 'object' && cc.captions ? cc.captions : {}), mode: v }; })))),
-        toggle('Uppercase', !!cap.uppercase, v => mutate(cc => { cc.captions = { ...(typeof cc.captions === 'object' && cc.captions ? cc.captions : {}), uppercase: v }; })),
-        h('span', { class: 'field__help' }, 'An .srt file is always written next to the export.')),
-      h('section', { class: 'panel col' },
-        h('h2', { class: 'panel__title' }, 'Source range'),
-        h('div', { class: 'fields' },
-          field('Start (s)', numInput(clip.start, v => mutate(cc => { cc.clip = { ...(cc.clip || {}), start: v ?? 0 }; }), { min: 0, step: 0.1 })),
-          field('End (s)', numInput(clip.end, v => mutate(cc => { cc.clip = { ...(cc.clip || {}), end: v }; }), { min: 0, step: 0.1, placeholder: 'end' }))))),
-    h('div', { class: 'col' },
-      fmt === 'presentation' ? h('section', { class: 'panel col' },
-        h('h2', { class: 'panel__title' }, 'Slides feed', toggle('On', !!scr, v => mutate(cc => { cc.screen = v ? { video: '', offset: 0, default: 'speaker', layouts: [] } : null; }, true))),
-        scr ? h('div', { class: 'col' },
-          pathField('Screen recording', scr.video, v => mutate(cc => { cc.screen.video = v; }), { filter: 'video' }),
-          h('div', { class: 'fields' },
-            field('Offset (s)', numInput(scr.offset, v => mutate(cc => { cc.screen.offset = v ?? 0; }), { step: 0.04 })),
-            field('Start with', select(scr.default || 'speaker', [['speaker', 'Speaker'], ['screen', 'Slides']], v => mutate(cc => { cc.screen.default = v; }))),
-            field('Audio from', select((c.audio || {}).source || 'video', [['video', 'Camera'], ['screen', 'Screen recording']], v => mutate(cc => { cc.audio = { ...(cc.audio || {}), source: v }; })))),
-          h('span', { class: 'field__help' }, 'Offset = screen time minus camera time for the same moment (clap or slide change). Switch layouts from the transcript with "Slides" / "Speaker".'),
-          h('div', { class: 'label' }, 'Layout switches'), layoutList()) : h('span', { class: 'body-sm' }, 'Camera only.')) : null,
-      h('section', { class: 'panel col' },
-        h('h2', { class: 'panel__title' }, 'Preset JSON'),
-        h('span', { class: 'field__help' }, 'Every setting, including the _doc notes. Saving here replaces the whole preset.'),
-        jsonArea,
-        h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', onclick: async () => {
-          try { const r = await api('/api/save', { name: S.P.name, preset_text: jsonArea.value }); pushUndo(); S.P.preset = JSON.parse(jsonArea.value); S.P.plan = r.plan; flash('success', 'Preset saved', ''); render(); }
-          catch (e) { fail(e); }
-        } }, 'Save JSON')))));
+function slidesPanel() {
+  const c = S.P.preset, scr = c.screen;
+  return h('section', { class: 'panel col' },
+    h('h2', { class: 'panel__title' }, 'Slides feed', toggle('On', !!scr, v => mutate(cc => { cc.screen = v ? { video: '', offset: 0, default: 'speaker', layouts: [] } : null; }, { render: true }))),
+    scr ? h('div', { class: 'col' },
+      pathField('Screen recording', scr.video, v => mutate(cc => { cc.screen.video = v; }), { filter: 'video' }),
+      h('div', { class: 'fields' },
+        field('Offset (s)', numInput(scr.offset, v => mutate(cc => { cc.screen.offset = v ?? 0; }), { step: 0.04 })),
+        field('Start with', select(scr.default || 'speaker', [['speaker', 'Speaker'], ['screen', 'Slides']], v => mutate(cc => { cc.screen.default = v; }))),
+        field('Audio from', select((c.audio || {}).source || 'video', [['video', 'Camera'], ['screen', 'Screen recording']], v => mutate(cc => { cc.audio = { ...(cc.audio || {}), source: v }; })))),
+      h('span', { class: 'field__help' }, 'Offset = screen time minus camera time for the same moment (clap or slide change). Switch layouts from the transcript with "Slides" / "Speaker". The live preview shows the camera; Stills and the export show the layout.'),
+      layoutList()) : h('span', { class: 'body-sm' }, 'Camera only.'));
 }
 function layoutList() {
   const ls = (S.P.preset.screen || {}).layouts || [];
   return ls.length ? h('table', { class: 'table' }, h('thead', {}, h('tr', {}, h('th', {}, 'From (src s)'), h('th', {}, 'Layout'), h('th', {}, ''))),
     h('tbody', {}, ls.map((l, i) => h('tr', {}, h('td', {}, fmtT(l.at_src)), h('td', {}, l.layout === 'screen' ? 'Slides + inset' : 'Speaker'),
-      h('td', { style: 'width:1%' }, h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => mutate(c => { c.screen.layouts.splice(i, 1); }, true) }, 'Remove'))))))
+      h('td', { style: 'width:1%' }, h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => mutate(c => { c.screen.layouts.splice(i, 1); }, { render: true }) }, 'Remove'))))))
     : h('span', { class: 'body-sm' }, 'No switches yet.');
 }
 
-/* ---- Render tab */
-function tabRender(fmt) {
-  const P = S.P;
+/* ---- Export tab */
+const EXPORT_PRESETS = {
+  reel: ['Instagram / TikTok reel', { aspect: '9:16' }, { short_side: 1080, fps: 30, quality: 'high', codec: 'h264', audio_kbps: 192, loudness: -14, max_mbps: null }],
+  youtube: ['YouTube 1080p', { aspect: '16:9' }, { short_side: 1080, fps: 30, quality: 'high', codec: 'h264', audio_kbps: 192, loudness: -14, max_mbps: null }],
+  youtube4k: ['YouTube 4K', { aspect: '16:9' }, { short_side: 2160, fps: 30, quality: 'high', codec: 'h264', audio_kbps: 256, loudness: -14, max_mbps: null }],
+  linkedin: ['LinkedIn / web 1080p', {}, { short_side: 1080, fps: 30, quality: 'standard', codec: 'h264', audio_kbps: 160, loudness: -14, max_mbps: 12 }],
+  venue: ['Venue / projector', { aspect: '16:9' }, { short_side: 1080, fps: 30, quality: 'high', codec: 'h264', audio_kbps: 192, loudness: -16, max_mbps: 24 }],
+  small: ['Small preview (send for approval)', {}, { short_side: 720, fps: 30, quality: 'small', codec: 'h264', audio_kbps: 128, loudness: -14, max_mbps: 4 }],
+  master: ['Archive master (H.265)', {}, { short_side: 2160, fps: 30, quality: 'high', codec: 'h265', audio_kbps: 320, loudness: null, max_mbps: null }],
+};
+function tabExport(fmt) {
+  const P = S.P, c = P.preset, ex = c.export || {}, o = c.output || {};
+  const setEx = (k, v) => mutate(cc => { cc.export = { ...(cc.export || {}), [k]: v }; }, { render: true });
   const outs = P.outputs || [];
   const sheet = (P.stills || []).find(s => s.name === 'sheet.jpg');
-  const items = [...outs.map(o => ({ ...o, label: o.name })), ...(sheet ? [{ ...sheet, label: 'Stills sheet' }] : [])];
+  const items = [...outs.map(x => ({ ...x, label: x.name })), ...(sheet ? [{ ...sheet, label: 'Stills sheet' }] : [])];
   let chosen = store.get('render-view-' + P.name, null);
   if (!items.some(i => i.path === chosen)) chosen = (items.find(i => /\.mp4$/i.test(i.path)) || items[0] || {}).path || null;
-  const view = h('div', { id: 'render-viewer' }, viewer(chosen));
   const act = (label, action, cls = '') => h('button', { class: 'btn btn--lg ' + cls, type: 'button', onclick: () => runJob({ tool: 'make', name: P.name, action }) }, label);
+  const size = (P.plan || {}).size || [0, 0];
   return h('div', { class: 'grid2' },
     h('div', { class: 'col' },
       h('section', { class: 'panel panel--bracket col' },
-        h('h2', { class: 'panel__title' }, 'Render'),
-        h('div', { class: 'row' }, act('Rough cut', 'roughcut'), act('Stills', 'stills'), act('Draft', 'draft'), act('Build', 'build', 'btn--primary')),
+        h('h2', { class: 'panel__title' }, 'Export settings', h('span', { class: 'mono-sm' }, `${size[0]} x ${size[1]} | ${(P.plan || {}).fps || 30} fps`)),
+        field('Preset', select('', [['', 'Choose a preset to fill the settings'], ...Object.entries(EXPORT_PRESETS).map(([k, v]) => [k, v[0]])], k => {
+          if (!k) return; const [, out, e] = EXPORT_PRESETS[k];
+          mutate(cc => { cc.output = { ...(cc.output || {}), ...out }; cc.export = { ...(cc.export || {}), ...e }; }, { render: true });
+        })),
+        h('div', { class: 'fields' },
+          field('Aspect', select(o.aspect || (fmt === 'interview' ? '9:16' : '16:9'), [['9:16', '9:16 vertical'], ['16:9', '16:9'], ['1:1', '1:1'], ['4:5', '4:5']], v => mutate(cc => { cc.output = { ...(cc.output || {}), aspect: v }; delete cc.output.size; }, { render: true }))),
+          field('Resolution', select(ex.short_side || 1080, [[540, '540p'], [720, '720p'], [1080, '1080p'], [1440, '1440p'], [2160, '2160p (4K)']], v => setEx('short_side', +v))),
+          field('Frame rate', select(ex.fps || o.fps || 30, [[24, '24'], [25, '25'], [30, '30'], [50, '50'], [60, '60']], v => setEx('fps', +v))),
+          field('Quality', select(ex.quality || 'high', [['high', 'High'], ['standard', 'Standard'], ['small', 'Small file']], v => setEx('quality', v))),
+          field('Codec', select(ex.codec || 'h264', [['h264', 'H.264 (plays anywhere)'], ['h265', 'H.265 (smaller)']], v => setEx('codec', v))),
+          field('Max bitrate', select(ex.max_mbps || '', [['', 'No cap'], [4, '4 Mbps'], [8, '8 Mbps'], [12, '12 Mbps'], [24, '24 Mbps'], [50, '50 Mbps']], v => setEx('max_mbps', v ? +v : null))),
+          field('Audio', select(ex.audio_kbps || 192, [[128, '128 kbps'], [160, '160 kbps'], [192, '192 kbps'], [256, '256 kbps'], [320, '320 kbps']], v => setEx('audio_kbps', +v))),
+          field('Loudness', select(ex.loudness === null ? 'off' : (ex.loudness ?? (fmt === 'interview' ? -14 : -16)), [[-14, '-14 LUFS (social)'], [-16, '-16 LUFS'], [-23, '-23 LUFS (broadcast)'], ['off', 'Leave as recorded']], v => setEx('loudness', v === 'off' ? null : +v)))),
+        field('File name', textInput(ex.file || '', v => mutate(cc => { cc.export = { ...(cc.export || {}), file: v.trim() || undefined }; }), { mono: true, placeholder: P.name }), `Saved as exports/${(P.plan || {}).output_file || P.name + '.mp4'}`),
+        h('div', { class: 'row' }, act('Rough cut', 'roughcut'), act('Stills', 'stills'), act('Draft', 'draft'), act('Export', 'build', 'btn--primary')),
         h('ol', { class: 'body-sm', style: 'margin:0; padding-left: 18px' },
-          h('li', {}, 'Rough cut: the cut only, half size, with sound. Get it approved first.'),
-          h('li', {}, 'Stills: a sheet of frames at every graphic, the visual storyboard.'),
+          h('li', {}, 'Rough cut: the clips and transitions with sound, half size. Get it approved first.'),
+          h('li', {}, 'Stills: a sheet of frames at every graphic and text, the visual storyboard.'),
           h('li', {}, 'Draft: everything, half size, fast. For checking timing.'),
-          h('li', {}, 'Build: the final file in exports/, plus .srt (and .chapters.txt).')),
+          h('li', {}, 'Export: the final file with these settings, plus .srt (and .chapters.txt).')),
+        h('div', { class: 'row' }, h('button', { class: 'btn btn--sm', type: 'button', onclick: () => runJob({ tool: 'make', name: P.name, action: 'proxy' }) }, (P.plan || {}).proxy ? 'Remake preview proxy' : 'Make preview proxy'),
+          h('span', { class: 'field__help' }, 'A small copy of the recording for smooth scrubbing (and for files the browser cannot play).')),
         activeJobsFor(j => j.project === P.name)),
       h('section', { class: 'panel col', style: 'padding:0' },
         h('h2', { class: 'panel__title', style: 'padding: var(--space-4) var(--space-4) 0' }, 'Files'),
@@ -989,8 +1879,18 @@ function tabRender(fmt) {
           h('tbody', {}, items.map(it => h('tr', { class: 'click', 'aria-selected': it.path === chosen ? 'true' : null, tabindex: 0,
             onclick: () => { store.set('render-view-' + P.name, it.path); render(); } },
             h('td', {}, it.label), h('td', { class: 'num' }, fmtSize(it.size)), h('td', {}, fmtWhen(it.mtime)), h('td', { style: 'width:1%' }, showIn(it.path))))))
-          : h('div', { class: 'empty body-sm' }, 'Nothing rendered yet.'))),
-    h('section', { class: 'panel col' }, h('h2', { class: 'panel__title' }, 'Preview', chosen ? h('span', { class: 'mono-sm' }, base(chosen)) : null), view));
+          : h('div', { class: 'empty body-sm' }, 'Nothing rendered yet.')),
+      h('details', { class: 'panel' }, h('summary', { class: 'label' }, 'Preset JSON (advanced)'), presetJson())),
+    h('section', { class: 'panel col' }, h('h2', { class: 'panel__title' }, 'Preview', chosen ? h('span', { class: 'mono-sm' }, base(chosen)) : null), viewer(chosen)));
+}
+function presetJson() {
+  const area = h('textarea', { class: 'input input--mono', rows: 18, spellcheck: 'false' }, JSON.stringify(S.P.preset, null, 2));
+  return h('div', { class: 'col', style: 'margin-top: var(--space-3)' },
+    h('span', { class: 'field__help' }, 'Every setting, including the _doc notes. Saving here replaces the whole preset.'), area,
+    h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', onclick: async () => {
+      try { const r = await api('/api/save', { name: S.P.name, preset_text: area.value }); pushUndo(); S.P.preset = JSON.parse(area.value); S.P.plan = r.plan; flash('success', 'Preset saved', ''); render(); }
+      catch (e) { fail(e); }
+    } }, 'Save JSON')));
 }
 
 /* ---- Notes tab */
@@ -1165,7 +2065,7 @@ $('#theme').addEventListener('click', () => {
   if (VIEWS.some(([, items]) => items.some(([id]) => id === hv))) {
     S.view = hv;
     if (hp && ['interview', 'presentation', 'reel'].includes(hv)) store.set('project-' + hv, hp);
-    if (ht && ['edit', 'graphics', 'output', 'render', 'notes'].includes(ht)) S.tab = ht;
+    if (ht) S.tab = { output: 'export', render: 'export' }[ht] || ht;
   }
   renderNav(); render(); refreshState();
 })();

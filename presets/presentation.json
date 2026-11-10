@@ -4,24 +4,101 @@
   "name": "presentation",
   "video": "raw/talk.mp4",
   "transcript": "src/talk.words.json",
-  "output": {"_doc": "aspect 16:9 | 9:16 | 1:1 (or size [w, h]). focus/zoom: crop toward the speaker from a wide stage shot, e.g. zoom 1.4, focus [0.45, 0.4].",
-             "aspect": "16:9", "fps": 30, "focus": [0.5, 0.4], "zoom": 1.0},
-  "clip": {"_doc": "Source range to use: trim the setup before the talk and the applause after it.", "start": 0.0},
-  "trim": {"_doc": "mode: words keeps speech and shortens pauses longer than max_gap to lead + tail of air. head_tail = only cut before the first and after the last word. none = keep everything (still applies cuts).",
-           "mode": "words", "max_gap": 1.4, "lead": 0.3, "tail": 0.5, "fillers": false},
+  "output": {
+    "_doc": "aspect 9:16 | 16:9 | 1:1 | 4:5 (or size [w, h]). focus = [x, y] fractions of the frame to keep in view (the speaker on a wide stage shot). zoom > 1 crops in. rotate = degrees to level the horizon (corners are zoomed out of view).",
+    "aspect": "16:9",
+    "fps": 30,
+    "focus": [
+      0.5,
+      0.4
+    ],
+    "zoom": 1.0,
+    "rotate": 0
+  },
+  "grade": {
+    "_doc": "Project colour, applied to every clip without its own grade. exposure in EV stops, contrast and saturation 1 = unchanged, temperature and tint -1..1 (warm/cool, magenta/green). The studio preview uses the same maths.",
+    "exposure": 0,
+    "contrast": 1,
+    "saturation": 1,
+    "temperature": 0,
+    "tint": 0
+  },
+  "export": {
+    "_doc": "Export settings. short_side 540 | 720 | 1080 | 1440 | 2160 px; fps 24 | 25 | 30 | 50 | 60; quality high | standard | small; codec h264 (plays anywhere) | h265 (smaller); max_mbps caps the bitrate (venue players); audio_kbps; loudness in LUFS (null = leave as recorded); file = name in exports/ (default: the project name).",
+    "short_side": 1080,
+    "fps": 30,
+    "quality": "high",
+    "codec": "h264",
+    "max_mbps": null,
+    "audio_kbps": 192,
+    "loudness": -16,
+    "file": ""
+  },
+  "clip": {
+    "_doc": "Source range to use: trim the setup before the talk and the applause after it.",
+    "start": 0.0
+  },
+  "trim": {
+    "_doc": "mode: words keeps speech and shortens pauses longer than max_gap to lead + tail of air. head_tail = only cut before the first and after the last word. none = keep everything (still applies cuts).",
+    "mode": "words",
+    "max_gap": 1.4,
+    "lead": 0.3,
+    "tail": 0.5,
+    "fillers": false
+  },
   "cuts": [],
+  "_clips_doc": "Optional \"clips\": the timeline, once edited in the studio: [{in, out, transition: {type, dur}, zoom, focus, rotate, grade}] in source seconds, any order. Without it the clips come from the transcript (trim, cuts, fillers). Transitions: fade, dip_black, dip_white, wipe_left, wipe_right, slide_left, slide_up, zoom, circle.",
   "_cuts_doc": "[start, end] SOURCE ranges to remove: false starts, technical breaks, off-topic tangents.",
-  "punch": {"mode": "off"},
-  "captions": {"_doc": "mode: lines (subtitles on a dark box) | words | off.", "mode": "lines"},
-  "intro": {"_doc": "Title over the first seconds. Remove the title to skip.", "title": "Talk title", "subtitle": "Speaker Name | Event, Date", "dur": 3.5},
-  "lower_thirds": [{"name": "Speaker Name", "title": "Role, Company", "at": 4.0, "dur": 5.0}],
-  "chapters": [{"at_src": 0.0, "title": "Introduction"}],
+  "punch": {
+    "mode": "off"
+  },
+  "captions": {
+    "_doc": "mode: lines (subtitles on a dark box) | words | off.",
+    "mode": "lines"
+  },
+  "intro": {
+    "_doc": "Title over the first seconds. Remove the title to skip.",
+    "title": "Talk title",
+    "subtitle": "Speaker Name | Event, Date",
+    "dur": 3.5
+  },
+  "lower_thirds": [
+    {
+      "name": "Speaker Name",
+      "title": "Role, Company",
+      "at": 4.0,
+      "dur": 5.0
+    }
+  ],
+  "chapters": [
+    {
+      "at_src": 0.0,
+      "title": "Introduction"
+    }
+  ],
   "_chapters_doc": "{at_src, title}. Each shows a small top-left tag (chapter_cards) and becomes a line in exports/<name>.chapters.txt; the first is pinned to 0:00 for YouTube.",
   "chapter_cards": true,
+  "texts": [],
+  "_texts_doc": "Free text overlays: {text, at | at_src, dur, x, y (centre, fractions), size (fraction of height), font display | sans | mono, color white | cyan | magenta | black, box 0..1 (dark box opacity), anim_in none | fade | slide_up | slide_left | pop | type, anim_out none | fade | slide_down | slide_right | pop, anim_dur}. Graphics (lower thirds, cards, chapters, intro) also take anim: fade | slide_right | slide_left | slide_up | none.",
   "screen": null,
   "_screen_doc": "Optional slides / screen recording: {\"video\": \"raw/slides.mp4\", \"offset\": 0.0, \"default\": \"speaker\", \"layouts\": [{\"at_src\": 30.0, \"layout\": \"screen\"}, {\"at_src\": 300.0, \"layout\": \"speaker\"}]}. offset = screen time minus camera time for the same moment. layout screen = slides full frame + speaker inset top-right.",
-  "audio": {"_doc": "source: video (camera mic) | screen (e.g. desk feed recorded with the slides).", "source": "video"},
+  "audio": {
+    "_doc": "source: video (camera mic) | screen (e.g. desk feed recorded with the slides).",
+    "source": "video"
+  },
   "broll": [],
-  "music": {"file": "", "db": -26, "duck": true},
-  "end": {"lines": ["Thank you"], "handle": "@accurova", "dur": 3.0}
+  "music": {
+    "file": "",
+    "db": -26,
+    "duck": true,
+    "start": 0,
+    "_doc": "start = seconds to skip into the track. The studio finds its beats to snap cuts and text to the music."
+  },
+  "end": {
+    "lines": [
+      "Thank you"
+    ],
+    "handle": "@accurova",
+    "dur": 3.0
+  }
 }

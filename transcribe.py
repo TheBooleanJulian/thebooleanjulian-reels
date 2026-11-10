@@ -47,15 +47,27 @@ def fill_missing(words):
 
 
 def run_faster_whisper(wav, model, lang, fillers=False):
+    # Model downloads come from Hugging Face. On Windows its cache can't symlink (harmless, just a bit more disk)
+    # and anonymous downloads are fine for public models: silence both notices so the job log stays readable.
+    os.environ.setdefault('HF_HUB_DISABLE_SYMLINKS_WARNING', '1')
+    os.environ.setdefault('HF_HUB_VERBOSITY', 'error')
     from faster_whisper import WhisperModel
     import wave, numpy as np
     with wave.open(wav, 'rb') as r:           # our ffmpeg already made 16 kHz mono: skip faster-whisper's PyAV decoder
         audio = np.frombuffer(r.readframes(r.getnframes()), '<i2').astype(np.float32) / 32768.0
+    total = len(audio) / 16000
+    print(f'loading model {model} (the first run on a machine downloads it)', flush=True)
     m = WhisperModel(model, device='cpu', compute_type='int8')
+    print(f'transcribing {int(total // 60)}:{int(total % 60):02d} of audio', flush=True)
     segs, info = m.transcribe(audio, word_timestamps=True, vad_filter=True, language=lang,
                               initial_prompt=vocab_prompt(fillers))
-    words = [{'w': w.word.strip(), 'start': float(w.start), 'end': float(w.end)}
-             for s in segs for w in (s.words or []) if w.word.strip()]
+    words, last = [], -10.0
+    for s in segs:                            # a generator: the work happens here, segment by segment
+        words += [{'w': w.word.strip(), 'start': float(w.start), 'end': float(w.end)}
+                  for w in (s.words or []) if w.word.strip()]
+        pct = 100.0 * s.end / total if total else 0.0
+        if pct - last >= 2:
+            last = pct; print(f'transcribe {min(99.0, pct):.0f}%', flush=True)
     return words, info.language
 
 
