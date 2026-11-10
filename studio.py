@@ -201,8 +201,10 @@ class Job:
 
 
 JOBS, JOB_Q, JOBS_LOCK = {}, queue.Queue(), threading.Lock()
-PROGRESS = [(re.compile(r'(\d+(?:\.\d+)?)%'), lambda m: float(m.group(1))),
-            (re.compile(r'(\d+)/(\d+)\s*(?:frames)?'), lambda m: 100.0 * int(m.group(1)) / max(1, int(m.group(2))))]
+# "render 42%", "transcribe 7%", "rendering 120/900 frames", "still 3/9". Numbers must follow a space and end the
+# word, so digits inside paths ("...bb45/615dc80f...", "Orbitron%5B...") never move the progress bar.
+PROGRESS = [(re.compile(r'(?:^|\s)(\d{1,3}(?:\.\d+)?)%(?=\s|$)'), lambda m: float(m.group(1))),
+            (re.compile(r'(?:^|\s)(\d+)/(\d+)(?=\s+frames|\s*$)'), lambda m: 100.0 * int(m.group(1)) / max(1, int(m.group(2))))]
 
 
 def submit(title, argv, kind, outputs=(), project=None):
@@ -224,7 +226,7 @@ def add_line(j, text):
             break
     if j.lines and j.lines[-1].startswith('  rendering ') and text.lstrip().startswith('rendering '):
         j.lines[-1] = text                                   # polaroid's \r progress line: update in place
-    elif j.lines and re.match(r'(render|still|proxy) \d', j.lines[-1]) and re.match(r'(render|still) \d', text):
+    elif j.lines and re.match(r'(render|still|transcribe) \d', j.lines[-1]) and re.match(r'(render|still|transcribe) \d', text):
         j.lines[-1] = text
     else:
         j.lines.append(text)
