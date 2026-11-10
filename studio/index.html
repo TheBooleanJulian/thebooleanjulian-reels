@@ -1113,9 +1113,20 @@ async function updateJobsView() {
 function viewCheck() {
   const env = S.env || {};
   const row = (name, ok, detail, optional) => h('tr', {}, h('td', {}, name), h('td', {}, h('span', { class: 'badge ' + (ok ? 'badge--success' : optional ? 'badge--warning' : 'badge--danger') }, ok ? 'OK' : optional ? 'Missing' : 'Fail')), h('td', { style: 'word-break: break-all' }, detail || ''));
+  const inVenv = /[\\/]\.polaroid-reel[\\/]venv[\\/]/i.test(env.python_path || '');
+  const pipCmd = pkg => `"${env.python_path || 'python'}" -m pip install ${pkg}`;
+  const missing = [!env.whisper && 'faster-whisper', !env.cv2 && 'opencv-python imageio-ffmpeg'].filter(Boolean);
   return h('div', { class: 'page' },
     h('div', { class: 'page__head' }, h('div', { class: 'col' }, h('h1', { class: 'display-lg' }, 'Setup'), h('span', { class: 'body-sm' }, 'What this laptop has. First time: double-click setup.bat in polaroid-reel/.'))),
     flashSlot(),
+    env.python_path && !inVenv ? alertBox('warning', 'Not running in the tool environment',
+      `The studio is using ${env.python_path}.\nDouble-click polaroid-reel\\setup.bat once (installs everything into its own Python 3.12), then close this window and reopen studio.bat.`) : null,
+    missing.length ? h('section', { class: 'panel col' },
+      h('h2', { class: 'panel__title' }, 'Install the missing parts'),
+      h('span', { class: 'body-sm' }, 'Easiest: run polaroid-reel\\setup.bat. Or paste this exact line into a terminal (it installs into the Python the studio runs on):'),
+      h('div', { class: 'pathrow' }, h('input', { class: 'input input--mono', readonly: true, value: pipCmd(missing.join(' ')), onfocus: e => e.target.select() }),
+        h('button', { class: 'btn', type: 'button', onclick: () => navigator.clipboard.writeText(pipCmd(missing.join(' '))).then(() => flash('success', 'Copied', 'Paste it into Command Prompt, then reopen studio.bat.')).catch(() => flash('info', 'Select the line and copy it', '')) }, 'Copy')),
+      h('span', { class: 'field__help' }, 'Then close the studio window and open studio.bat again.')) : null,
     h('div', { class: 'grid2' },
       h('section', { class: 'panel', style: 'padding:0' },
         h('table', { class: 'table' }, h('thead', {}, h('tr', {}, h('th', {}, 'Part'), h('th', {}, 'Status'), h('th', {}, 'Detail'))),
@@ -1123,8 +1134,8 @@ function viewCheck() {
             row('Python', !!env.python, `${env.python || ''}  ${env.python_path || ''}`),
             row('ffmpeg', !!env.ffmpeg, env.ffmpeg || 'Not found: run setup.bat or install ffmpeg'),
             row('File dialogs (Tk)', !!env.tk, env.tk ? '' : 'Paste paths into the fields instead', true),
-            row('Transcription', !!env.whisper, env.whisper ? 'faster-whisper' : 'pip install faster-whisper (interviews, presentations, talking heads)', true),
-            row('Polaroid engine', !!env.cv2, env.cv2 ? 'opencv' : 'Run setup.bat', true),
+            row('Transcription', !!env.whisper, env.whisper ? 'faster-whisper' : 'Needed for interviews, presentations and talking heads. See "Install the missing parts" above.', true),
+            row('Polaroid engine', !!env.cv2, env.cv2 ? 'opencv' : 'See "Install the missing parts" above.', true),
             row('Tool folder', true, env.root)))),
       h('section', { class: 'panel col' },
         h('h2', { class: 'panel__title' }, 'Full check', h('button', { class: 'btn btn--sm', type: 'button', onclick: () => runJob({ tool: 'doctor' }, j => { jobSel = j.id; go('jobs'); }) }, 'Run doctor.py')),
