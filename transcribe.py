@@ -46,7 +46,11 @@ def fill_missing(words):
     return words
 
 
-def run_faster_whisper(wav, model, lang, fillers=False):
+def run_faster_whisper(wav, model, lang, fillers=False, vad=False):
+    """vad=False by default: faster-whisper's speech detector (Silero) heard 67 s of speech in a 13.6 min talk
+    through a PA in a hall and the transcript stopped at 3:06; without it Whisper got all 2,093 words.
+    condition_on_previous_text=False stops one misheard stretch from derailing what follows, and
+    hallucination_silence_threshold skips text Whisper invents over long silences (applause, pauses)."""
     # Model downloads come from Hugging Face. On Windows its cache can't symlink (harmless, just a bit more disk)
     # and anonymous downloads are fine for public models: silence both notices so the job log stays readable.
     os.environ.setdefault('HF_HUB_DISABLE_SYMLINKS_WARNING', '1')
@@ -59,7 +63,8 @@ def run_faster_whisper(wav, model, lang, fillers=False):
     print(f'loading model {model} (the first run on a machine downloads it)', flush=True)
     m = WhisperModel(model, device='cpu', compute_type='int8')
     print(f'transcribing {int(total // 60)}:{int(total % 60):02d} of audio', flush=True)
-    segs, info = m.transcribe(audio, word_timestamps=True, vad_filter=True, language=lang,
+    segs, info = m.transcribe(audio, word_timestamps=True, vad_filter=vad, language=lang,
+                              condition_on_previous_text=False, hallucination_silence_threshold=2.0,
                               initial_prompt=vocab_prompt(fillers))
     words, last = [], -10.0
     for s in segs:                            # a generator: the work happens here, segment by segment
@@ -113,6 +118,9 @@ def main():
     ap.add_argument('--srt')
     ap.add_argument('--out')
     ap.add_argument('--fillers', action='store_true', help='keep um/uh in the transcript so the edit can cut them')
+    ap.add_argument('--vad', action='store_true',
+                    help='skip what a speech detector calls silence (faster on long quiet stretches, but it drops '
+                         'speech through a PA or in a reverberant room; faster-whisper only)')
     a = ap.parse_args()
     out = a.out or os.path.splitext(a.media)[0] + '.words.json'
     if a.backend == 'srt':
@@ -121,7 +129,10 @@ def main():
         wav = os.path.splitext(out)[0] + '.16k.wav'
         extract_audio(a.media, wav)
         try:
-            words, lang = (run_faster_whisper if a.backend == 'faster-whisper' else run_whisperx)(wav, a.model, a.lang, a.fillers)
+            if a.backend == 'faster-whisper':
+                words, lang = run_faster_whisper(wav, a.model, a.lang, a.fillers, a.vad)
+            else:
+                words, lang = run_whisperx(wav, a.model, a.lang, a.fillers)
         except ImportError:
             sys.exit(f'{a.backend} is not installed: pip install {"faster-whisper" if a.backend == "faster-whisper" else "whisperx"}')
         finally:

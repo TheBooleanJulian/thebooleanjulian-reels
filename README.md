@@ -31,8 +31,10 @@ IBM Plex Sans for interviews/presentations, JetBrains Mono in the studio UI (all
   **Cut pauses** rebuilds the clips from the transcript; the first manual edit turns the auto cut into a manual timeline.
 - **Inspector**: the selected clip (source in/out, transition, its own zoom / focus / rotation / colour), text (font,
   colour, size, box, position, in / out animation: fade, slide, pop, typewriter) or graphic; with nothing selected, the
-  project look (aspect, framing at cuts, zoom, focus, horizon, exposure, contrast, saturation, temperature, tint) and
-  the caption style (words or lines, colours, size, height, words at once, uppercase).
+  project look (aspect, framing at cuts, zoom, focus, horizon, exposure, contrast, saturation, temperature, tint,
+  video denoise), **Sound** (noise reduction and voice clarity, off / light / medium / strong, with **Listen**: 10 s at
+  the playhead, original and cleaned, matched in level) and the caption style (words or lines, colours, size, height,
+  words at once, uppercase). Video denoise and the sound clean-up are export only: check them with Stills and Listen.
 - **Transcript**: click a word to jump there; select words to **Cut**, **Restore**, **Cut to card** (removes the
   interviewer's spoken question and shows it as a card), add a **Card / Chapter / Lower third / B-roll / Text** timed to
   them, switch **Slides / Speaker**, **Fix word** (double-click).
@@ -59,7 +61,7 @@ Templates `presets/interview.json` and `presets/presentation.json` (every key ha
 | Captions | a few words at a time, spoken word cyan | subtitle lines on a dark box |
 | Graphics | intro title, lower thirds, question cards, text overlays, b-roll (photo or clip), end card | intro, lower thirds, chapter tags, text, slides feed with speaker inset, end card |
 | Timeline | clips in any order, trims, transitions, per-clip framing / horizon / colour | same |
-| Sound | 12 ms fades at every cut, optional music bed ducked under speech, loudness -14 LUFS | same, -16 LUFS, audio from camera or screen recording |
+| Sound | optional noise reduction + voice clarity, 12 ms fades at every cut, optional music bed ducked under speech, loudness -14 LUFS | same, -16 LUFS, audio from camera or screen recording |
 | Also writes | `exports/<name>.srt` | `.srt` + `.chapters.txt` (YouTube, first chapter pinned to 0:00) |
 
 ```bash
@@ -140,7 +142,7 @@ Each scene's `still: {t, bg}` picks the preview moment and (optionally) a saved 
 | `make_reel.py` | CLI: `--stills`, `--roughcut`, `--build`, `--only N` (forwards interview/presentation presets to `longform.py`) |
 | `preset.py` | scene kinds (`hook`, `plan`, `bts_clip`, `reveal`, `end`) and preset loader |
 | `reel.py` | engine: loads the style, fonts, easing, `Overlay` (2x supersampled drawing + glow), HUD helpers |
-| `transcribe.py` | speech -> word timings JSON (faster-whisper, WhisperX, or SRT import); `--fillers` keeps um/uh |
+| `transcribe.py` | speech -> word timings JSON (faster-whisper, WhisperX, or SRT import); `--fillers` keeps um/uh; transcribes the whole recording (`--vad` skips what a speech detector calls silence: faster, but it dropped most of a talk through a PA) |
 | `cuts.py` | rough cut: keep-segments from words or silence, manual cuts, edited-timeline remapping |
 | `captions.py` | word-timed caption grouping + drawing (spoken word highlighted) |
 | `new_reel.py` | scaffolds `projects/<name>/` from a template in `presets/` |

@@ -16,12 +16,18 @@
     "rotate": 0
   },
   "grade": {
-    "_doc": "Project colour, applied to every clip without its own grade. exposure in EV stops, contrast and saturation 1 = unchanged, temperature and tint -1..1 (warm/cool, magenta/green). The studio preview uses the same maths.",
+    "_doc": "Project colour, applied to every clip without its own grade. exposure in EV stops, contrast and saturation 1 = unchanged, temperature and tint -1..1 (warm/cool, magenta/green), denoise 0..1 = video grain reduction (export only, check with Stills). The studio preview uses the same maths for colour.",
     "exposure": 0,
     "contrast": 1,
     "saturation": 1,
     "temperature": 0,
-    "tint": 0
+    "tint": 0,
+    "denoise": 0
+  },
+  "audio": {
+    "_doc": "denoise and voice: off | light | medium | strong. denoise = high-pass for rumble + FFT noise reduction against the measured room noise; voice = less boom at 220 Hz, more presence at 3.2 kHz, de-essing. Applied to the whole recording before it is cut; the studio's Sound > Listen plays 10 s before/after.",
+    "denoise": "off",
+    "voice": "off"
   },
   "export": {
     "_doc": "Export settings. short_side 540 | 720 | 1080 | 1440 | 2160 px; fps 24 | 25 | 30 | 50 | 60; quality high | standard | small; codec h264 (plays anywhere) | h265 (smaller); max_mbps caps the bitrate (venue players); audio_kbps; loudness in LUFS (null = leave as recorded); file = name in exports/ (default: the project name).",
