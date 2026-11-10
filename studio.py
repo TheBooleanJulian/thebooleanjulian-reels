@@ -135,15 +135,37 @@ def project_summary(name):
             'mtime': os.path.getmtime(os.path.join(d, 'preset.json'))}
 
 
-def plan(name):
-    """The long-form engine's own view of the edit (segments, durations, fillers)."""
+def longform_json(name, *flags):
+    """Run longform.py on a project with flags that print one JSON line; errors come back as {'error': [...]}."""
     d = project_dir(name)
-    r = subprocess.run([PY, os.path.join(ROOT, 'longform.py'), os.path.join(d, 'preset.json'), '--plan'],
+    r = subprocess.run([PY, os.path.join(ROOT, 'longform.py'), os.path.join(d, 'preset.json'), *flags],
                        capture_output=True, text=True, encoding='utf-8', errors='replace', cwd=ROOT)
     if r.returncode != 0:
-        return {'error': (r.stderr or r.stdout).strip().splitlines()[-1:] or ['plan failed']}
+        return {'error': (r.stderr or r.stdout).strip().splitlines()[-1:] or ['longform.py failed']}
     try: return json.loads(r.stdout.strip().splitlines()[-1])
-    except Exception: return {'error': ['could not read the plan']}
+    except Exception: return {'error': ['could not read the result']}
+
+
+def plan(name):
+    """The long-form engine's own view of the edit (clips, durations, fillers, look)."""
+    return longform_json(name, '--plan')
+
+
+def preview_graphics(name, width=540):
+    """Graphic PNGs at preview size (lower thirds, cards, chapters, intro, end card) for the live preview."""
+    d = project_dir(name)
+    cfg = read_json(os.path.join(d, 'preset.json'))
+    folder = os.path.join(CACHE, cfg.get('name', name), 'preview_gfx')
+    if os.path.isdir(folder): shutil.rmtree(folder, ignore_errors=True)
+    res = longform_json(name, '--graphics', folder, '--width', str(int(width)))
+    if isinstance(res, list):
+        for g in res: g['mtime'] = os.path.getmtime(g['png'])
+    return {'graphics': res} if isinstance(res, list) else res
+
+
+def export_name(cfg, name):
+    base = re.sub(r'[^\w.-]+', '-', str((cfg.get('export') or {}).get('file') or cfg.get('name') or name)).strip('-')
+    return base or name
 
 
 def project_detail(name):
@@ -158,6 +180,7 @@ def project_detail(name):
         if cfg.get(key): allow(resolve(d, cfg[key]))
     if isinstance(cfg.get('screen'), dict) and cfg['screen'].get('video'): allow(resolve(d, cfg['screen']['video']))
     for b in cfg.get('broll', []): allow(resolve(d, b.get('file', '')))
+    if (cfg.get('music') or {}).get('file'): allow(resolve(d, cfg['music']['file']))
     work = os.path.join(d, 'work')
     outputs = files_in(os.path.join(d, 'exports'), ('.mp4', '.srt', '.txt'))
     outputs += [f for f in files_in(work, ('.mp4',)) if f['name'] in ('roughcut.mp4',)]
@@ -371,8 +394,8 @@ def build_make(a):
     name = cfg.get('name', a['name'])
     outs = {'stills': [os.path.join(d, 'work', 'stills', 'sheet.jpg')],
             'roughcut': [os.path.join(d, 'work', 'roughcut.mp4')],
-            'build': [os.path.join(d, 'exports', f'{name if longform else a["name"]}.mp4')],   # longform names by preset
-            'draft': [os.path.join(d, 'exports', f'{name}_draft.mp4')],
+            'build': [os.path.join(d, 'exports', f'{export_name(cfg, a["name"]) if longform else a["name"]}.mp4')],
+            'draft': [os.path.join(d, 'exports', f'{export_name(cfg, a["name"])}_draft.mp4')],
             'proxy': [os.path.join(CACHE, name, 'proxy.mp4')]}[action]
     label = {'stills': 'Stills', 'roughcut': 'Rough cut', 'build': 'Build', 'draft': 'Draft build', 'proxy': 'Proxy'}[action]
     return submit(f'{label} – {a["name"]}', [PY, os.path.join(ROOT, script), preset, *flags], action, outs, project=a['name'])
@@ -449,6 +472,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if u.path == '/api/env': return self._send(200, env_info())
             if u.path == '/api/project': return self._send(200, project_detail(q.get('name', [''])[0]))
             if u.path == '/api/plan': return self._send(200, plan(q.get('name', [''])[0]))
+            if u.path == '/api/graphics':
+                return self._send(200, preview_graphics(q.get('name', [''])[0], int(q.get('width', ['540'])[0])))
+            if u.path == '/api/beats': return self._send(200, longform_json(q.get('name', [''])[0], '--beats'))
             if u.path == '/api/job':
                 j = JOBS.get(int(q.get('id', ['0'])[0]))
                 if not j: return self._err(404, 'No such job')

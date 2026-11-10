@@ -6,7 +6,8 @@ graphics are drawn in code. No AI-generated images or video.
 - Follow `WORKFLOW.md` (approval-gated). Log each approval in `projects/<name>/notes.md`.
 - The look comes from `style/signature.json`; the quality bar is `style/motion_brief.md`. Change the look there, not in code.
 - Scenes: `preset.py` (hook, plan, bts_clip, reveal, end, talking_head). Engine: `reel.py`, `kit.py`. Presets in `presets/`, projects in `projects/`.
-- Interviews / presentations (`"format"` in the preset): `longform.py` (ffmpeg one-pass engine), `cards.py`, `subs.py`; look in `style/signature.json` -> `longform`. `make_reel.py` forwards to it. Design notes: `docs/longform.md`.
+- Interviews / presentations (`"format"` in the preset): `longform.py` (per-clip render + overlay pass), `edl.py` (clips, transitions, time mapping), `cards.py`, `subs.py`, `beats.py`; look in `style/signature.json` -> `longform`. `make_reel.py` forwards to it. Design notes: `docs/longform.md`.
+- The studio preview (`studio/index.html`) mirrors `edl.py` and the grade/rotate maths in `longform.py`. Change both together; `tests/test_preview_parity.py` (needs node) catches drift.
 - UI: `studio.py` + `studio/index.html` (stdlib server, Julian Unified UI). Keep it stdlib and single-file; jobs only run this folder's scripts with validated arguments.
 - Windows is the main machine: open text files with `encoding='utf-8'`, write ffmpeg concat paths with forward slashes, no `fork`. Tool venv: `%USERPROFILE%\.polaroid-reel\venv` (made by `polaroid-reel\setup.bat`).
 - Tests: `pytest -q tests` (and `polaroid-reel/tests`).

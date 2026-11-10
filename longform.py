@@ -341,6 +341,11 @@ class Edit:
                 'auto_segments': self.auto_segs, 'segments': [[round(a, 3), round(b, 3)] for a, b in self.edl.segs],
                 'cuts_count': len(self.edl.clips) - 1, 'words_total': len(self.all_words), 'words_kept': len(self.words),
                 'filler_idx': self.filler_idx, 'captions': self.captions_mode(),
+                'caption_style': self.caption_style(self.W, self.H, self.captions_mode())
+                if self.captions_mode() != 'off' else None,
+                'look': {'zoom': self.zoom, 'focus': self.focus, 'rotate': self.rotate, 'grade': self.grade},
+                'punch': self.punch(), 'export': self.ex,
+                'output_file': os.path.basename(self.output_path()),
                 'chapters': [{'t': round(t, 2), 'title': x} for t, x in self.chapters()],
                 'graphics': [{'kind': k, 't': round(t, 2), 'dur': round(d, 2), 'anim': an, 'key': key, 'idx': i}
                              for k, _, t, d, an, key, i in self.graphics()],
@@ -500,7 +505,8 @@ class Edit:
             return ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p', '-profile:v', 'high']
         q = QUALITY.get(self.ex.get('quality', 'high'), QUALITY['high'])
         if self.ex.get('codec') == 'h265':
-            args = ['-c:v', 'libx265', '-preset', 'medium', '-crf', str(q[1]), '-pix_fmt', 'yuv420p', '-tag:v', 'hvc1']
+            args = ['-c:v', 'libx265', '-preset', 'medium', '-crf', str(q[1]), '-pix_fmt', 'yuv420p', '-tag:v', 'hvc1',
+                    '-x265-params', 'log-level=error']                    # x265 logs on its own otherwise
         else:
             args = ['-c:v', 'libx264', '-preset', 'medium', '-crf', str(q[0]), '-pix_fmt', 'yuv420p', '-profile:v', 'high']
         mx = self.ex.get('max_mbps')
