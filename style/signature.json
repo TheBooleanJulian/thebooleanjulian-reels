@@ -1,0 +1,52 @@
+{
+  "_doc": "Signature Style: the single source of truth for the look of every reel. Edit here, not in the code. Colours are RGB. Fonts are files in fonts/ (variable = has a weight axis). Keys starting with _ are notes.",
+  "name": "Accurova Signature (black / cyan / magenta)",
+  "handle": "@accurova",
+  "colors": {
+    "cyan": [0, 229, 255],
+    "magenta": [255, 46, 214],
+    "white": [240, 248, 255]
+  },
+  "fonts": {
+    "orb": {"file": "Orbitron%5Bwght%5D.ttf", "variable": true, "use": "titles, big words, handle"},
+    "exo": {"file": "Exo2%5Bwght%5D.ttf", "variable": true, "use": "headlines and captions (readable)"},
+    "mono": {"file": "ShareTechMono-Regular.ttf", "variable": false, "use": "small readouts, stamps"},
+    "chakra": {"file": "ChakraPetch-SemiBold.ttf", "variable": false, "use": "spare"},
+    "chakra_bold": {"file": "ChakraPetch-Bold.ttf", "variable": false, "use": "interview/presentation names, cards, word captions"},
+    "plex": {"file": "IBMPlexSans-SemiBold.ttf", "variable": false, "use": "interview/presentation titles and subtitles (reading text)"},
+    "plex_regular": {"file": "IBMPlexSans-Regular.ttf", "variable": false, "use": "small print"}
+  },
+  "safe": {"_doc": "Keep text between these y values (Instagram UI covers the rest).", "top": 250, "bottom": 1560},
+  "hud": {"stamp_format": "HH:MM TZ | DD.MM.YYYY", "brackets": true},
+  "caption": {
+    "_doc": "Word-timed captions for talking-head reels.",
+    "font": "exo", "weight": 800, "size": 80,
+    "color": "white", "highlight": "cyan",
+    "stroke": 7, "max_words": 3, "max_chars": 22, "max_width": 940,
+    "y": 1290, "hold_after": 0.25, "pop": 0.12, "uppercase": false
+  },
+  "longform": {
+    "_doc": "Interviews and presentations (longform.py). Calmer than the reel HUD: no glow, one magenta rule per graphic. Font keys come from 'fonts'. Sizes and positions are fractions of the output height (or width for x), so 9:16 and 16:9 share one look. 'vertical' = taller than wide.",
+    "bg": [5, 6, 13],
+    "lower_third": {"name_font": "chakra_bold", "title_font": "plex", "name_size": 0.040, "title_size": 0.024,
+                    "x": 0.06, "y": {"vertical": 0.575, "landscape": 0.80}, "plate": 0.62, "dur": 4.5},
+    "card": {"font": "chakra_bold", "label_font": "mono", "size": {"vertical": 0.040, "landscape": 0.058},
+             "max_width": 0.80, "dim": 0.62, "dur": 2.6},
+    "chapter": {"font": "chakra_bold", "size": 0.032, "dur": 3.0},
+    "end": {"title_font": "chakra_bold", "line_font": "plex", "dur": 3.0},
+    "inset": {"width": 0.27, "margin": 0.03},
+    "captions_words": {"_doc": "Interview default: a few words at a time, the spoken word in the highlight colour.",
+                       "family": "Chakra Petch", "file": "ChakraPetch-Bold.ttf", "bold": true, "size": {"vertical": 0.044, "landscape": 0.060},
+                       "y": {"vertical": 0.70, "landscape": 0.87}, "color": "white", "highlight": "cyan", "outline": 0.0042,
+                       "max_words": 3, "max_chars": 22, "hold_after": 0.25, "uppercase": false},
+    "captions_lines": {"_doc": "Presentation default: subtitle lines on a dark box, max_chars per line.",
+                       "family": "IBM Plex Sans SemiBold", "file": "IBMPlexSans-SemiBold.ttf", "bold": false, "size": {"vertical": 0.030, "landscape": 0.042},
+                       "y": {"vertical": 0.72, "landscape": 0.93}, "color": "white", "box": 0.62,
+                       "max_chars": {"vertical": 28, "landscape": 42}, "max_lines": 2, "max_dur": 6.0},
+    "fillers": ["um", "umm", "uh", "uhh", "uhm", "erm", "er", "ah", "hmm", "mm", "mhm"],
+    "loudness": {"interview": -14, "presentation": -16},
+    "music_db": -24
+  },
+  "vocab": ["Accurova", "BNI", "Singapore", "Lightroom", "Nikon", "Claude", "Pixieset"],
+  "fixes": {"accurova": "Accurova", "claud": "Claude", "bni": "BNI"}
+}

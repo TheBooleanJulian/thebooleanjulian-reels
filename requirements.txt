@@ -1,0 +1,7 @@
+pillow
+numpy
+scipy
+astropy   # only for the optional ephemeris check (ephemeris.py)
+faster-whisper   # transcription (transcribe.py): interviews, presentations, talking heads. Models download on first use.
+# The studio (studio.py) and longform.py add no packages: standard library + the above + ffmpeg
+# (on PATH, or the copy bundled with imageio-ffmpeg from polaroid-reel/requirements.txt).

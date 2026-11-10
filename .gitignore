@@ -1,0 +1,26 @@
+raw/*
+!raw/.gitkeep
+projects/*/work/
+projects/*/exports/
+out/
+scenes_out/
+stills/
+__pycache__/
+*.tmp.mp4
+*.tmp
+.pytest_cache/
+*.16k.wav
+
+# ---- Kept off the public repo (they stay in the Drive folder) ----
+# Client work, licensed stock/music, event photos of people, and renders.
+polaroid-reel/*/
+!polaroid-reel/tests/
+!polaroid-reel/template2/
+polaroid-reel/*.mp4
+# Template artwork derived from the GLS26 client project (Global Leadership Summit branding).
+polaroid-reel/background.png
+polaroid-reel/template2/*
+!polaroid-reel/template2/DancingScript.ttf
+# Per-shoot projects are client work; only the posted Moon x Jupiter example is public.
+projects/*
+!projects/moon-jupiter-2026-11-03/

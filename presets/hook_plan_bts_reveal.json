@@ -1,0 +1,86 @@
+{
+  "_doc": "PRESET: hook -> plan -> BTS -> reveal -> end card. Keys starting with _ are notes. Media paths are relative to the project root. Times are seconds; coordinates are pixels of the source image (plan/reveal) or of the 1080x1920 video frame.",
+  "name": "hook_plan_bts_reveal",
+  "stamp": "05:04 SGT | 03.11.2026",
+  "handle": "@accurova",
+  "video": "src/bts.mp4",
+  "scenes": [
+    {
+      "kind": "hook",
+      "_doc": "BTS clip segment + hook copy. lines = white lines, emphasis = big cyan word. track:true puts a magenta ring on the brightest spot (marker = glyph beside it).",
+      "clip": {"start": 0.0, "dur": 3.0},
+      "lines": ["I don't usually", "get up at 5am,"],
+      "emphasis": "but...",
+      "track": true,
+      "marker": "?",
+      "still": {"t": 2.6, "bg": "src/bts_0.4.jpg"}
+    },
+    {
+      "kind": "plan",
+      "_doc": "The 'planned weeks ago' beat: any still (sky map, floor plan, moodboard). a = subject with a dashed outline (center, radius), b = second subject point. mask_boxes paint over app UI with bg_color.",
+      "name": "plan",
+      "image": "src/stellarium.jpg",
+      "mask_boxes": [[0, 0, 1080, 300], [0, 2190, 1080, 2376], [596, 484, 634, 530]],
+      "bg_color": [5, 6, 11],
+      "dur": 3.8,
+      "start_scale": 0.9,
+      "end_scale": 1.0,
+      "a": {"center": [507, 1057], "radius": 322},
+      "b": [698, 1457],
+      "chip_text": "0.4° APART",
+      "chip_offset": [-150, 0],
+      "lines": ["Planned this shot", "a few weeks ago."],
+      "footnote": "// MAPPED OUT IN STELLARIUM",
+      "still": {"t": 3.0}
+    },
+    {
+      "kind": "bts_clip",
+      "_doc": "Layout 'bottom': speed-ramped BTS footage, a tracked callout (track: blob_companion | brightest | fixed+point) and two payoff lines. ramp: segments of {start, end, dur} (linear map) or {start, speed, dur}.",
+      "name": "bts_zoom",
+      "layout": "bottom",
+      "ramp": [{"start": 3.0, "end": 7.4, "dur": 1.8}, {"start": 7.4, "speed": 0.7, "dur": 2.7}],
+      "tag_right": "BTS | PHONE",
+      "lines_before": ["Zooming in…"],
+      "callout": {"at": 1.8, "label": "JUPITER", "sub": "GAS GIANT | IN LEO", "track": "blob_companion"},
+      "lines_after": ["That tiny dot under the Moon?", "That's Jupiter."],
+      "still": {"t": 4.0, "bg": "src/bts_8.4.jpg"}
+    },
+    {
+      "kind": "bts_clip",
+      "_doc": "Layout 'top': plain BTS clip with a two-line caption + small mono sub line.",
+      "name": "bts_camera",
+      "layout": "top",
+      "ramp": [{"start": 13.0, "speed": 1.0, "dur": 3.2}],
+      "lines": ["…then brought out", "the real camera."],
+      "sub": "NIKON D850 | 70-300mm @ 300mm",
+      "fade_in": 0.2,
+      "still": {"t": 2.0, "bg": "src/bts_15.2.jpg"}
+    },
+    {
+      "kind": "reveal",
+      "_doc": "Hero photo with shutter flash + slow push-in toward 'anchor'. tags: kind 'limb' (leader from the edge of a big round subject: center, radius, angle) or 'reticle' (ring on a point). side = left|right. headline = [small white line, big cyan lines...].",
+      "image": "src/hero.jpg",
+      "dur": 6.0,
+      "anchor": [560, 900],
+      "z_end": 1.15,
+      "label": "// FINAL FRAME | 05:04:04",
+      "tags": [
+        {"kind": "limb", "center": [478, 652], "radius": 315, "angle": 128, "side": "left", "title": "MOON", "sub": "371,600 km", "color": "white", "glow": false, "at": 0.9, "drop": 80, "run": 50},
+        {"kind": "reticle", "point": [659, 1089], "side": "right", "title": "JUPITER", "sub": "818,000,000 km", "at": 2.0, "drop": 70, "run": 50}
+      ],
+      "headline": {"lines": ["Same frame.", "Jupiter is ~2,200×", "farther away."], "at": 3.1, "y": 372},
+      "still": {"t": 5.5}
+    },
+    {
+      "kind": "end",
+      "_doc": "End card. frame: the hero photo glides back to 'scale' x fit, with the subject's centre x / top y (source px) placed at x=540 / y=top_y. title parts are coloured white|cyan|magenta.",
+      "dur": 3.5,
+      "frame": {"scale": 0.8, "subject_cx": 495, "subject_top": 499, "top_y": 640},
+      "title": [{"text": "MOON", "color": "white"}, {"text": " × ", "color": "magenta"}, {"text": "JUPITER", "color": "cyan"}],
+      "subtitle": "C O N J U N C T I O N",
+      "info": ["03.11.2026 | 05:04 SGT | SINGAPORE", "NIKON D850 | 300mm | f/5.6 | 1/160s | ISO 250"],
+      "fade_out": 0.4,
+      "still": {"t": 3.0}
+    }
+  ]
+}

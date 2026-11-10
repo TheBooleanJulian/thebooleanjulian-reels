@@ -1,0 +1,32 @@
+{
+  "_doc": "PRESET: talking head. Auto rough cut (drops pauses) + word-timed captions + punch-ins + lower third + end card. Needs a transcript: python3 transcribe.py raw/<recording>.mp4  (writes raw/<recording>.words.json). Keys starting with _ are notes.",
+  "name": "talking_head",
+  "stamp": "",
+  "video": "raw/recording.mp4",
+  "scenes": [
+    {
+      "kind": "talking_head",
+      "name": "talk",
+      "_doc": "transcript = word timings JSON. clip = optional source range to use. trim.mode: words (cut pauses > max_gap using the transcript), silence (ffmpeg silencedetect: noise_db, min_dur), none. cuts = extra [start,end] source ranges to remove by hand (e.g. a repeated take). captions: any key from style/signature.json 'caption' (size, y, max_words, uppercase, fixes{wrong:right}). punch_ins: [{at,dur,scale}] on the EDITED timeline; focus = [x,y] as fractions of the frame to zoom toward. lower_third: name/title, shown at 'at' for 'dur'. hud:false removes the corner brackets.",
+      "transcript": "raw/recording.words.json",
+      "clip": {"start": 0.0},
+      "trim": {"mode": "words", "max_gap": 0.5, "pad": 0.12},
+      "cuts": [],
+      "captions": {},
+      "punch_ins": [{"at": 6.0, "dur": 1.6, "scale": 1.2}],
+      "focus": [0.5, 0.38],
+      "lower_third": {"name": "YOUR NAME", "title": "ROLE | PLACE", "at": 0.4, "dur": 2.8},
+      "hud": true
+    },
+    {
+      "kind": "end",
+      "_doc": "End card with no photo: title parts, subtitle, cta lines in the middle, two info lines, then the handle from style/signature.json.",
+      "dur": 2.5,
+      "title": [{"text": "FOLLOW", "color": "white"}, {"text": " | ", "color": "magenta"}, {"text": "ACCUROVA", "color": "cyan"}],
+      "subtitle": "P H O T O  ·  V I D E O",
+      "cta": ["Follow for more", "behind-the-scenes"],
+      "info": ["SINGAPORE", "PREMIUM CORPORATE MEDIA"],
+      "fade_out": 0.4
+    }
+  ]
+}
