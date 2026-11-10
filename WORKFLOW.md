@@ -38,6 +38,7 @@ Offer the `--stills` sheet as the visual storyboard. Wait for approval.
 ## 5. Opening
 Render the first 10-15 s with sound (`--build --only 0` or a short preset) and show it. Take feedback before building the rest.
 Interviews/presentations: `--build --draft` (half size, fast) instead, reviewed for timing; then the full build.
+The studio's live preview is for editing, not for approval: approval is always on a rendered file (rough cut, draft, export).
 
 ## 6. Full video
 `python3 make_reel.py projects/<name>/preset.json --build`, then CHECK it: pull frames at the busiest moments,

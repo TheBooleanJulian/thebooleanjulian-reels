@@ -14,17 +14,37 @@ IBM Plex Sans for interviews/presentations, JetBrains Mono in the studio UI (all
 | Section | What it does |
 |---|---|
 | Polaroid recap | Pick a photo folder (no more drag-and-drop), music, background / end card, length, size; Draft or Render; the result plays in the page |
-| Interview | New project from a recording, transcribe, edit **by text**, graphics, render (rough cut, stills, draft, build) |
-| Presentation | Same flow, tuned for talks: chapters, subtitles, slides feed with speaker inset |
+| Interview | New project from a recording, transcribe, then the **editor**: preview, timeline, inspector, transcript; export |
+| Presentation | Same editor, tuned for talks: chapters, subtitles, slides feed with speaker inset |
 | Reel presets | The original 9:16 HUD presets: stills, rough cut, build, "only scene N", preset JSON editor |
 | Projects / Jobs / Setup | Everything under `projects/`; job queue with live logs and Stop; environment check and `doctor.py` |
 
-Editing by text (Interview / Presentation, Edit tab): click a word to play from it; drag or shift-click to select, then
-**Cut** (or Delete), **Restore**, **Cut to card** (removes the interviewer's spoken question and shows it as a card),
-**Card**, **Chapter**, **Lower third**, **B-roll** (pick a photo or clip), **Slides / Speaker** (layout switch),
-**Fix word** (double-click). **Preview edit** plays the source and skips everything the edit removes, so pacing can be
-judged before rendering. Every change saves to `preset.json` at once (Ctrl+Z undoes).
-Long recordings that the browser can't play (HEVC, ProRes): **Make proxy** (540p copy in `~/.tbj-reels/cache/`).
+### The editor (Interview / Presentation, Edit tab)
+- **Preview** at the export aspect, playing the edit: captions, text, lower thirds, cards, b-roll and the end card are
+  drawn where the export puts them; crop, zoom, rotation and colour use the same maths as the render (a test checks the
+  JavaScript against the Python). Dissolves and dips play as real crossfades; other transitions preview as a dissolve.
+  **Safe zones** (Instagram/TikTok UI, or 90% title-safe for 16:9) and a **level grid** for straightening horizons.
+- **Timeline**: video clips, text, graphics, b-roll, music with beats. Drag a clip to reorder it, drag its edges to
+  trim, **Split** at the playhead (S), Delete. The square between two clips sets the **transition** (dissolve, dip to
+  black / white, wipes, slides, zoom, circle). Items move and resize the same way. Everything **snaps** to the playhead,
+  cuts and (after **Find beats**) the music's beats; **Cuts to beats** moves every cut onto the nearest beat.
+  **Cut pauses** rebuilds the clips from the transcript; the first manual edit turns the auto cut into a manual timeline.
+- **Inspector**: the selected clip (source in/out, transition, its own zoom / focus / rotation / colour), text (font,
+  colour, size, box, position, in / out animation: fade, slide, pop, typewriter) or graphic; with nothing selected, the
+  project look (aspect, framing at cuts, zoom, focus, horizon, exposure, contrast, saturation, temperature, tint) and
+  the caption style (words or lines, colours, size, height, words at once, uppercase).
+- **Transcript**: click a word to jump there; select words to **Cut**, **Restore**, **Cut to card** (removes the
+  interviewer's spoken question and shows it as a card), add a **Card / Chapter / Lower third / B-roll / Text** timed to
+  them, switch **Slides / Speaker**, **Fix word** (double-click).
+- Keys: Space play, Left/Right one frame (Shift: one second), S split, T add text, Delete, Ctrl+Z undo.
+- Every change saves to `preset.json` at once. Long or browser-unfriendly recordings (HEVC, ProRes): **Make preview
+  proxy** on the Export tab (540p copy in `~/.tbj-reels/cache/`).
+
+### Export tab
+Presets (Instagram/TikTok reel, YouTube 1080p / 4K, LinkedIn, venue/projector, small preview, H.265 archive master) or
+your own: aspect, resolution (540p to 4K), frame rate, quality, H.264 / H.265, bitrate cap, audio bitrate, loudness,
+file name. **Rough cut** (clips, transitions and sound, half size), **Stills** (storyboard sheet), **Draft** (everything,
+half size) and **Export**; the files play in the page.
 
 The studio is Python standard library + one HTML file (`studio/index.html`, Julian Unified UI, dark/light). It listens on
 127.0.0.1 only and every request carries a per-launch token. Jobs run one at a time in a queue.
@@ -37,7 +57,8 @@ Templates `presets/interview.json` and `presets/presentation.json` (every key ha
 | Cut | pauses > 0.6 s removed, um/uh removed, hand cuts | pauses > 1.4 s shortened to ~0.8 s, hand cuts |
 | Framing | wide / tight (1.12x) alternating at each jump cut, focus point, zoom | static, optional zoom toward the speaker |
 | Captions | a few words at a time, spoken word cyan | subtitle lines on a dark box |
-| Graphics | intro title, lower thirds, question cards, b-roll (photo or clip), end card | intro, lower thirds, chapter tags, slides feed with speaker inset, end card |
+| Graphics | intro title, lower thirds, question cards, text overlays, b-roll (photo or clip), end card | intro, lower thirds, chapter tags, text, slides feed with speaker inset, end card |
+| Timeline | clips in any order, trims, transitions, per-clip framing / horizon / colour | same |
 | Sound | 12 ms fades at every cut, optional music bed ducked under speech, loudness -14 LUFS | same, -16 LUFS, audio from camera or screen recording |
 | Also writes | `exports/<name>.srt` | `.srt` + `.chapters.txt` (YouTube, first chapter pinned to 0:00) |
 
@@ -49,16 +70,20 @@ python make_reel.py projects/jane-tan/preset.json --roughcut   # cut only, half 
 python make_reel.py projects/jane-tan/preset.json --stills     # frame at every graphic -> work/stills/sheet.jpg
 python make_reel.py projects/jane-tan/preset.json --build --draft   # half size, fast
 python make_reel.py projects/jane-tan/preset.json --build      # -> exports/jane-tan.mp4 (+ .srt)
-python longform.py projects/jane-tan/preset.json --plan        # the edit as JSON (segments, durations)
+python longform.py projects/jane-tan/preset.json --plan        # the edit as JSON (clips, durations, look)
+python longform.py projects/jane-tan/preset.json --beats       # beat times of the music bed
 ```
 Times on graphics: `at_src` / `end_src` are source seconds and follow the edit when cuts change (the studio sets these);
 `at` / `dur` are seconds on the finished timeline. A graphic placed on a moment that gets cut moves to the next kept moment.
 
-Why a second engine: the reel engine redraws every frame in Python, which is right for 30 s of HUD motion and far too
-slow for 20 minutes. `longform.py` only decides the edit and draws a few PNG cards; ffmpeg cuts, scales, overlays,
-burns the captions (libass) and encodes in one pass (a 20 s test edit at 1080x1920 builds in ~15 s). Cuts snap to
-whole frames, so the separately sliced audio stays sample-exact. Big temporary files (audio, proxies) go to
-`~/.tbj-reels/cache/`, not the Drive folder. Design notes and what is deliberately left out: `docs/longform.md`.
+How it renders: the reel engine redraws every frame in Python, which is right for 30 s of HUD motion and far too slow
+for 20 minutes. `longform.py` renders each clip on its own with ffmpeg (framing, rotation, colour, slides layout), in
+parallel and **cached**, so a re-export after a text change reuses every unchanged clip; joins them (concat for cuts,
+`xfade` for transitions); then one pass adds b-roll, graphics, captions and text (libass), the end card, music and
+loudness, and encodes with the export settings. A 20 s 1080x1920 edit exports in ~10 s, ~5 s when the clips are cached.
+Cuts snap to whole frames, so the separately sliced audio (crossfaded at transitions) stays sample-exact. Big temporary
+files (clips, audio, proxies) go to `~/.tbj-reels/cache/`, not the Drive folder. Design notes and what is deliberately
+left out: `docs/longform.md`.
 
 ## What's in v3
 - **Signature Style** (`style/signature.json`): colours, fonts, safe zones, caption look, vocabulary and spelling fixes in one file.
@@ -107,9 +132,11 @@ Each scene's `still: {t, bg}` picks the preview moment and (optionally) a saved 
 | file | role |
 |---|---|
 | `studio.py`, `studio/index.html`, `studio.bat` | TBJ Reels Studio: local UI server (stdlib) and its single-file page |
-| `longform.py` | interview / presentation engine: edit plan, rough cut, stills, build, proxy |
+| `longform.py` | interview / presentation engine: edit plan, per-clip render, transitions, overlays, export, stills, proxy |
+| `edl.py` | the edit decision list: ordered clips, transitions, source <-> edit time (mirrored in the studio preview) |
+| `beats.py` | tempo and beat times of a music bed (numpy), for beatmatching |
 | `cards.py` | interview / presentation graphics (lower third, cards, chapter tag, intro, end card) as PNGs |
-| `subs.py` | caption cues, `.ass` for burning in, `.srt`, chapter lines |
+| `subs.py` | caption cues, text overlays with animations, `.ass` for burning in, `.srt`, chapter lines |
 | `make_reel.py` | CLI: `--stills`, `--roughcut`, `--build`, `--only N` (forwards interview/presentation presets to `longform.py`) |
 | `preset.py` | scene kinds (`hook`, `plan`, `bts_clip`, `reveal`, `end`) and preset loader |
 | `reel.py` | engine: loads the style, fonts, easing, `Overlay` (2x supersampled drawing + glow), HUD helpers |
@@ -134,7 +161,7 @@ Each scene's `still: {t, bg}` picks the preview moment and (optionally) a saved 
 ## Tests
 ```bash
 pip install pytest
-pytest -q tests              # edit decisions, captions, studio argument checks (no ffmpeg needed)
+pytest -q tests              # edit list, captions, text animation, studio checks, preview-vs-engine parity (needs node)
 cd polaroid-reel && pytest -q
 ```
 

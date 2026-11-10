@@ -54,13 +54,40 @@ Julian Unified UI tokens and components, bundled fonts). Chosen over Tkinter bec
 and the renders inline, which a text-driven video edit needs, and it matches the fleet's single-file HTML tools.
 Native file dialogs still come from Tk (run in a short subprocess), so folders are picked, not dragged.
 
+## The editor and the clip engine (added 2026-11-10)
+The first version cut in one ffmpeg pass with `select`, which only works for clips in source order. Reordering,
+transitions and per-clip looks needed an edit decision list:
+
+- **`edl.py`**: clips `{in, out, transition, zoom, focus, rotate, grade}`, any order. A transition belongs to the clip
+  it leads into and overlaps the two clips (the edit gets shorter by its length, clamped to half the shorter clip).
+  Without `clips` in the preset, they come from the transcript as before; the first timeline edit in the studio writes
+  them out ("manual timeline"), and **Cut pauses** goes back to the automatic cut.
+- **Render**: each clip on its own (rotate, grade, cover-fit at zoom/focus, slides layout), parallel, cached by a hash
+  of everything that affects its pixels; plain cuts joined by the concat demuxer, transitions by `xfade`; one overlay
+  pass. Audio: frame-aligned slices, 12 ms fades at cuts, equal-power crossfades at transitions.
+- **Colour**: a 3x3 RGB matrix (exposure as gain, temperature/tint as channel gains, saturation with Rec.709 weights)
+  then contrast around mid-grey. ffmpeg: `colorchannelmixer` + `lutrgb`; studio preview: SVG `feColorMatrix` +
+  `feComponentTransfer` in sRGB. Measured within 3/255 of each other on a test colour.
+- **Horizon**: rotate about the centre, then zoom by `cos a + max(w/h, h/w) sin a` so no corner shows.
+- **Text overlays** are libass events: one style per item (font, size, colour, optional box), an in phase, a hold and an
+  out phase. Fade, slide, pop (`\t` scale) and typewriter (`\ko` karaoke with an invisible secondary colour; shadow off
+  while typing, or the untyped letters cast one).
+- **Beats**: `beats.py` (numpy): log-band spectral-flux onsets, autocorrelation tempo with a mild 120 BPM prior,
+  dynamic-programming beat tracking. Within one frame on a synthetic drum pattern; not checked by ear on real music.
+- **Preview parity**: `tests/test_preview_parity.py` runs the JavaScript copies of the edit and colour maths in Node and
+  compares them with the Python, so the preview can't drift from the render unnoticed.
+- **Fixed on the way**: `output.zoom` had no effect in the first version (the zoomed image was cropped back to the
+  zoomed size, then scaled down). It now crops in as documented; projects that set a zoom will look tighter.
+
 ## Known limits / next steps (not built)
 - Loudness is single-pass `loudnorm` (measured -15.4 LUFS against -14 on a 19 s test). A two-pass measure-then-apply
   would hit the target exactly; worth it if clips go to broadcast.
-- No multicam (two camera angles switched by speaker). The `screen` mechanism (second synced source, layout
-  switches) is the starting point: a second camera would be another layout.
-- Interview captions highlight per word; there is no per-word emphasis styling or emoji (by design for client work).
+- The live preview plays dissolves and dips as they render; wipes, slides, zoom and circle preview as a dissolve.
+  The slides layout and music ducking are not in the live preview (Stills and the export show them).
+- No multicam (two camera angles switched by speaker). The `screen` mechanism (second synced source, layout switches)
+  is the starting point.
 - Speaker diarisation (who is talking) is not attempted; lower thirds are placed by hand from the transcript.
-- B-roll photos are static (fade in/out). A slow push-in would need per-frame scaling; possible with ffmpeg `zoompan`
-  but it shimmers, so it was left out.
-- The browser plays H.264 sources directly; HEVC/ProRes need "Make proxy" first.
+- B-roll photos are static (fade in/out); no Ken Burns move.
+- Clips render as 8-bit Rec.709; HDR / 10-bit / log footage is not colour managed (grade it before, or use the
+  grade sliders by eye).
+- The browser plays H.264 sources directly; HEVC/ProRes need "Make preview proxy" first.

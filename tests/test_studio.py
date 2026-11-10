@@ -59,6 +59,36 @@ def test_project_names_are_validated(name):
         studio.project_dir(name)
 
 
+@pytest.mark.parametrize('line, pct', [
+    ('render 42%', 42.0),
+    ('transcribe 7%', 7.0),
+    ('  rendering 120/480 frames   82.3 fps  ETA  3s ', 25.0),
+    ('still 3/12', 25.0),
+])
+def test_progress_lines_are_read(line, pct):
+    j = studio.Job('t', ['x'], 'k')
+    studio.add_line(j, line)
+    assert j.progress == pytest.approx(pct)
+
+
+@pytest.mark.parametrize('line', [
+    '56 words -> C:/Users/Temp/AppData/Local/Temp/claude/e4551ba19b33bb45/615dc80f/t.words.json',
+    'edit -> D:/projects/2026/11/out.mp4 (fonts/Orbitron%5Bwght%5D.ttf)',
+])
+def test_paths_do_not_move_progress(line):
+    j = studio.Job('t', ['x'], 'k')
+    studio.add_line(j, 'transcribe 60%')
+    studio.add_line(j, line)
+    assert j.progress == 60.0
+
+
+def test_transcribe_progress_updates_in_place():
+    j = studio.Job('t', ['x'], 'k')
+    for line in ('loading model tiny.en', 'transcribe 10%', 'transcribe 40%', 'transcribe 99%'):
+        studio.add_line(j, line)
+    assert j.lines == ['loading model tiny.en', 'transcribe 99%']
+
+
 def test_new_project_rejects_unknown_template(captured):
     with pytest.raises(ValueError):
         studio.build_new({'name': 'ok-name', 'template': '../../evil'})
