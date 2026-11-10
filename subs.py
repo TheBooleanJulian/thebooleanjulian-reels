@@ -83,8 +83,85 @@ def prep_words(words, fixes=None, uppercase=False):
     return [{**w, 'w': clean(w['w'], fixes, uppercase)} for w in words]
 
 
-def build_ass(words, mode, W, H, st, colors):
-    """The .ass script. st = the captions_words / captions_lines style block (already resolved for the orientation)."""
+# Text overlay fonts: key -> (libass family, file in fonts/, bold flag). Mirrored by the studio preview.
+TEXT_FONTS = {'display': ('Chakra Petch', 'ChakraPetch-Bold.ttf', True),
+              'sans': ('IBM Plex Sans SemiBold', 'IBMPlexSans-SemiBold.ttf', False),
+              'mono': ('Share Tech Mono', 'ShareTechMono-Regular.ttf', False)}
+ANIM_IN = ('none', 'fade', 'slide_up', 'slide_left', 'pop', 'type')
+ANIM_OUT = ('none', 'fade', 'slide_down', 'slide_right', 'pop')
+
+
+def text_style(i, item, W, H, colors):
+    """One ASS style per text overlay: font, size, colour, optional dark box."""
+    fam, _file, bold = TEXT_FONTS.get(item.get('font', 'display'), TEXT_FONTS['display'])
+    size = round(float(item.get('size', 0.06)) * H)
+    col = colors.get(item.get('color', 'white'), colors['white'])
+    box = float(item.get('box', 0) or 0)
+    sec = ass_color(col, 255)                                    # invisible "not yet typed" colour for typewriter
+    if box > 0:
+        a = round(255 * (1 - box))
+        return (f"Style: T{i},{fam},{size},{ass_color(col)},{sec},{ass_color((0, 0, 0), a)},{ass_color((0, 0, 0), a)},"
+                f"{-1 if bold else 0},0,0,0,100,100,0,0,3,{max(2, round(size * 0.28))},0,5,0,0,0,1")
+    return (f"Style: T{i},{fam},{size},{ass_color(col)},{sec},{ass_color((0, 0, 0))},{ass_color((0, 0, 0), 140)},"
+            f"{-1 if bold else 0},0,0,0,100,100,0,0,1,{max(2, round(H * 0.003))},{max(1, round(H * 0.002))},5,0,0,0,1")
+
+
+def text_events(i, item, t, d, W, H):
+    """Dialogue lines for one text overlay: an in phase, a hold and an out phase, each with its own tags.
+    Position = centre of the text at (x, y), fractions of the frame."""
+    x, y = round(float(item.get('x', 0.5)) * W), round(float(item.get('y', 0.5)) * H)
+    txt = '\\N'.join(_ass_text(l) for l in str(item.get('text', '')).split('\n'))
+    ain, aout = item.get('anim_in', 'fade'), item.get('anim_out', 'fade')
+    din = float(item.get('anim_dur', 0.4) or 0.4)
+    if ain == 'type': din = max(din, min(2.5, 0.045 * len(str(item.get('text', '')))))
+    dout = float(item.get('anim_dur', 0.4) or 0.4)
+    din = 0.0 if ain == 'none' else min(din, d * 0.45)
+    dout = 0.0 if aout == 'none' else min(dout, d * 0.45)
+    ms_in, ms_out = round(din * 1000), round(dout * 1000)
+    dy, dx = round(H * 0.04), round(W * 0.05)
+    ev = []
+
+    def add(a, b, tags, body=txt):
+        if b - a > 0.005: ev.append(f'Dialogue: 1,{_ts_ass(a)},{_ts_ass(b)},T{i},,0,0,0,,{{\\an5{tags}}}{body}')
+    if din:
+        if ain == 'fade': add(t, t + din, f'\\pos({x},{y})\\fad({ms_in},0)')
+        elif ain == 'slide_up': add(t, t + din, f'\\move({x},{y + dy},{x},{y},0,{ms_in})\\fad({ms_in},0)')
+        elif ain == 'slide_left': add(t, t + din, f'\\move({x + dx},{y},{x},{y},0,{ms_in})\\fad({ms_in},0)')
+        elif ain == 'pop': add(t, t + din, f'\\pos({x},{y})\\fscx70\\fscy70\\t(0,{ms_in},0.6,\\fscx100\\fscy100)\\fad({round(ms_in * 0.6)},0)')
+        elif ain == 'type':
+            raw = str(item.get('text', ''))
+            per = max(1, round(din * 100 / max(1, len(raw))))
+            body = ''.join(('\\N' if ch == '\n' else f'{{\\ko{per}}}{_ass_text(ch)}') for ch in raw)
+            add(t, t + din, f'\\pos({x},{y})\\shad0', body)     # \ko hides fill + outline, not the shadow
+    add(t + din, t + d - dout, f'\\pos({x},{y})')
+    if dout:
+        a = t + d - dout
+        if aout == 'fade': add(a, t + d, f'\\pos({x},{y})\\fad(0,{ms_out})')
+        elif aout == 'slide_down': add(a, t + d, f'\\move({x},{y},{x},{y + dy},0,{ms_out})\\fad(0,{ms_out})')
+        elif aout == 'slide_right': add(a, t + d, f'\\move({x},{y},{x + dx},{y},0,{ms_out})\\fad(0,{ms_out})')
+        elif aout == 'pop': add(a, t + d, f'\\pos({x},{y})\\t(0,{ms_out},\\fscx70\\fscy70)\\fad(0,{ms_out})')
+    return ev
+
+
+def build_ass(words, mode, W, H, st, colors, texts=()):
+    """The .ass script: captions (st = resolved captions_words / captions_lines block) plus text overlays
+    (texts = [(item, t, dur)] on the edited timeline). mode 'off' = text overlays only."""
+    header = ['[Script Info]', 'ScriptType: v4.00+', f'PlayResX: {W}', f'PlayResY: {H}', 'WrapStyle: 2',
+              'ScaledBorderAndShadow: yes', '', '[V4+ Styles]',
+              'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, '
+              'Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, '
+              'MarginR, MarginV, Encoding']
+    styles = [text_style(i, item, W, H, colors) for i, (item, _t, _d) in enumerate(texts)]
+    events = [e for i, (item, t, d) in enumerate(texts) for e in text_events(i, item, t, d, W, H)]
+    if mode == 'off' or not words or not st:
+        return '\n'.join(header + styles + ['', '[Events]', 'Format: Layer, Start, End, Style, Name, MarginL, MarginR, '
+                                            'MarginV, Effect, Text'] + events) + '\n'
+    cap = _caption_ass(words, mode, W, H, st, colors)
+    i = cap.index('[Events]')
+    return '\n'.join(header + [cap[i - 2]] + styles + cap[i - 1:] + events) + '\n'
+
+
+def _caption_ass(words, mode, W, H, st, colors):
     size = round(st['size'] * H)
     white, hi = colors[st.get('color', 'white')], colors[st.get('highlight', 'cyan')]
     margin_v = round((1 - st['y']) * H)
@@ -117,7 +194,7 @@ def build_ass(words, mode, W, H, st, colors):
         for a, b, parts, first in word_events(words, st.get('max_words', 3), st.get('max_chars', 22), st.get('hold_after', 0.25)):
             txt = ' '.join((on_tag + _ass_text(w) + '{\\r}') if on else _ass_text(w) for w, on in parts)
             out.append(f"Dialogue: 0,{_ts_ass(a)},{_ts_ass(b)},Cap,,0,0,0,,{pos}{fade if first else ''}{txt}")
-    return '\n'.join(out) + '\n'
+    return out                                                   # lines; build_ass splices the text styles in
 
 
 def build_srt(words, max_chars=42):

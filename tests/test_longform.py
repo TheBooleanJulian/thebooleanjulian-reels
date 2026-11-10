@@ -94,15 +94,15 @@ def test_interview_cuts_pause_and_filler(project):
     assert 'Um,' not in kept and kept[0] == 'Hi,'
     assert e.dur < 9.0 - 2.5                                 # the 3 s pause is gone
     # whole frames only, so audio slices line up with video exactly
-    for a, b in e.segs:
+    for a, b in e.edl.segs:
         assert abs(a * 30 - round(a * 30)) < 1e-6 and abs(b * 30 - round(b * 30)) < 1e-6
-    assert abs(e.dur - sum(kb - ka for ka, kb in e.frames) / 30) < 1e-9
+    assert abs(e.dur - sum(c['kb'] - c['ka'] for c in e.edl.clips) / 30) < 1e-9
 
 
 def test_hand_cut_removes_words_and_audio(project):
     e = project(cuts=[[6.0, 7.0]])
     assert 'anyway.' not in [w['w'] for w in e.words]
-    assert all(not (a < 6.5 < b) for a, b in e.segs)        # middle of the cut is not in any kept segment
+    assert all(not (a < 6.5 < b) for a, b in e.edl.segs)        # middle of the cut is not in any kept segment
 
 
 def test_fillers_kept_when_disabled(project):
@@ -113,23 +113,37 @@ def test_fillers_kept_when_disabled(project):
 def test_edit_t_maps_cut_moments_forward(project):
     e = project(cuts=[[6.0, 7.0]])
     t_cut = e.edit_t(6.5)
-    assert t_cut == pytest.approx(e.edit_t(7.2) - (7.2 - [a for a, _ in e.segs if a > 6.5][0]), abs=0.05)
+    assert t_cut == pytest.approx(e.edit_t(7.2) - (7.2 - [a for a, _ in e.edl.segs if a > 6.5][0]), abs=0.05)
     assert e.edit_t(0.0) == 0.0
 
 
 def test_alternate_framing_toggles_on_long_segments_only(project):
-    e = project(punch={'mode': 'alternate', 'min_seg': 0.5})
-    segs = e.seg_ranges()
-    tight = e.tight_ranges()
-    assert len(segs) >= 2 and tight and tight[0] == segs[1]
-    assert project(punch={'mode': 'off'}).tight_ranges() == []
+    zooms = [lk['zoom'] for lk in project(punch={'mode': 'alternate', 'min_seg': 0.5, 'scale': 1.2}).clip_looks()]
+    assert len(zooms) >= 2 and zooms[0] == 1.0 and zooms[1] == pytest.approx(1.2)
+    assert all(z == 1.0 for z in (lk['zoom'] for lk in project(punch={'mode': 'off'}).clip_looks()))
+
+
+def test_clip_overrides_beat_project_look(project):
+    e = project(output={'zoom': 1.1, 'rotate': 2}, grade={'exposure': 0.5},
+                clips=[{'in': 0, 'out': 1.0}, {'in': 4.8, 'out': 5.8, 'zoom': 1.5, 'rotate': -1, 'grade': {'saturation': 0}}])
+    a, b = e.clip_looks()
+    assert a['zoom'] == pytest.approx(1.1) and a['rotate'] == 2 and a['grade'] == {'exposure': 0.5}
+    assert b['zoom'] == pytest.approx(1.65) and b['rotate'] == -1 and b['grade'] == {'exposure': 0.5, 'saturation': 0}
+
+
+def test_manual_clips_keep_order_and_words(project):
+    e = project(clips=[{'in': 4.8, 'out': 5.8}, {'in': 0.0, 'out': 1.0, 'transition': {'type': 'fade', 'dur': 0.2}}])
+    assert e.manual and [w['w'] for w in e.words][:2] == ['the', 'best']
+    assert e.dur == pytest.approx(2.0 - 0.2)
 
 
 def test_screen_layout_ranges(project):
     e = project(format='presentation', screen={'video': 'raw.mp4', 'layouts': [{'at_src': 4.8, 'layout': 'screen'},
                                                                                {'at_src': 7.2, 'layout': 'speaker'}]})
-    (r,) = e.screen_ranges()
-    assert r[0] == pytest.approx(e.edit_t(4.8)) and r[1] == pytest.approx(e.edit_t(7.2))
+    assert e.layout_ranges_src() == [(4.8, 7.2)]
+    c = next(c for c in e.edl.clips if c['ka'] / 30 <= 5.0 <= c['kb'] / 30)
+    (r,) = e._clip_screen_ranges(c)
+    assert r[0] == pytest.approx(max(0.0, 4.8 - c['ka'] / 30), abs=1e-6)
 
 
 def test_presentation_defaults_keep_more_air(project):
@@ -141,7 +155,7 @@ def test_presentation_defaults_keep_more_air(project):
 def test_graphics_follow_source_time(project):
     e = project(lower_thirds=[{'name': 'Jane', 'title': 'Lead', 'at_src': 4.8, 'dur': 2}],
                 intro={'title': 'Hello', 'dur': 1.5}, end={'lines': ['Bye']})
-    kinds = {k: (t, d) for k, _, t, d in e.graphics()}
+    kinds = {k: (t, d) for k, _, t, d, *_ in e.graphics()}
     assert kinds['intro'] == (0.0, 1.5)
     assert kinds['lower_third'][0] == pytest.approx(e.edit_t(4.8))
     assert e.end()['dur'] > 0
