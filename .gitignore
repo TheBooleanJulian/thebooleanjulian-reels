@@ -24,3 +24,7 @@ polaroid-reel/template2/*
 # Per-shoot projects are client work; only the posted Moon x Jupiter example is public.
 projects/*
 !projects/moon-jupiter-2026-11-03/
+
+# website build (python web/build.py) and wrangler state
+web/dist/
+.wrangler/

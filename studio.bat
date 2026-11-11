@@ -1,5 +1,6 @@
 @echo off
-REM TBJ Reels Studio: double-click to open the UI in your browser. Close this window to stop it.
+REM TBJ Reels Studio: double-click to open the editor (reels-editor.thebooleanjulian.dev) in your browser.
+REM The editing runs here, on this device; close this window to stop it. Offline: studio.bat --local
 REM First time on a laptop: double-click polaroid-reel\setup.bat (installs Python + packages).
 title TBJ Reels Studio
 set "PY=python"

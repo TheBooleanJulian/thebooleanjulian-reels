@@ -8,8 +8,14 @@ Brand look: black / cyan / magenta; Orbitron + Exo 2 + Share Tech Mono for the r
 IBM Plex Sans for interviews/presentations, JetBrains Mono in the studio UI (all SIL OFL, bundled in `fonts/`).
 
 ## TBJ Reels Studio (the UI)
-**Double-click `studio.bat`** (first time on a laptop: `polaroid-reel\setup.bat`). It opens
-`http://127.0.0.1:8765` in the browser. Same thing by hand: `python studio.py`.
+**Double-click `studio.bat`** (first time on a laptop: `polaroid-reel\setup.bat`). It opens the editor at
+**https://reels-editor.thebooleanjulian.dev** in the browser. Same thing by hand: `python studio.py`.
+
+The website is only the interface. It connects to the studio running on the device it is open on, so footage,
+renders and transcription stay on that device, at that device's speed: PC on the PC, laptop on the laptop. Keep the
+studio window open while you edit. The first time, the browser asks to let the site reach apps on your device: allow
+it (that is the studio on `127.0.0.1`, nothing else). Offline, or to skip the website: `studio.bat --local` opens
+`http://127.0.0.1:8765` served by the studio itself. Same page either way.
 
 | Section | What it does |
 |---|---|
@@ -49,7 +55,12 @@ file name. **Rough cut** (clips, transitions and sound, half size), **Stills** (
 half size) and **Export**; the files play in the page.
 
 The studio is Python standard library + one HTML file (`studio/index.html`, Julian Unified UI, dark/light). It listens on
-127.0.0.1 only and every request carries a per-launch token. Jobs run one at a time in a queue.
+127.0.0.1 only and every request carries a per-launch token. Jobs run one at a time in a queue. The website copy of the
+page asks the studio for that token (`/api/pair`); the studio only answers the website's own origin, which browsers
+set and pages can't fake. **Publishing the website** (from `main`): `npx wrangler deploy` in a clone outside Drive
+(runs `python web/build.py`, which copies the page and its fonts into `web/dist`; nothing else is uploaded).
+If the page and the studio must change together, bump `API_VERSION` in both: the website then tells an older
+studio to update.
 
 ## Interviews and presentations (`longform.py`)
 Templates `presets/interview.json` and `presets/presentation.json` (every key has a `_doc` note).
@@ -134,6 +145,7 @@ Each scene's `still: {t, bg}` picks the preview moment and (optionally) a saved 
 | file | role |
 |---|---|
 | `studio.py`, `studio/index.html`, `studio.bat` | TBJ Reels Studio: local UI server (stdlib) and its single-file page |
+| `web/build.py`, `wrangler.jsonc` | The same page published at reels-editor.thebooleanjulian.dev (static Worker; the editing stays on each device) |
 | `longform.py` | interview / presentation engine: edit plan, per-clip render, transitions, overlays, export, stills, proxy |
 | `edl.py` | the edit decision list: ordered clips, transitions, source <-> edit time (mirrored in the studio preview) |
 | `beats.py` | tempo and beat times of a music bed (numpy), for beatmatching |

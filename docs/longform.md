@@ -107,6 +107,30 @@ Found on the first real talk (13.6 min, phone at the back of a hall, voice throu
   ffmpeg's default. On the hall footage at 0.6 the pixel-to-pixel variation went 2.41 -> 1.91 with the face intact.
   Not in the live preview (Stills show it).
 
+## The website (added 2026-11-12)
+Julian wanted the editor at `reels-editor.thebooleanjulian.dev` with **the browser as the front end only**: files stay
+local (PC on the PC, laptop on the laptop, a client's device on that device), each browser its own session, and later
+a Google login to see the same projects on every device.
+
+- **Chosen: a local helper.** The existing engine (`studio.py`) runs on each device; the website serves the same
+  `studio/index.html` as static files (Worker `tbj-reels-editor`, assets only). The page sees it isn't on 127.0.0.1,
+  probes `http://127.0.0.1:8765-8784/api/pair` (last port first) and uses that origin for every API and media URL.
+  Rejected for now: the whole engine in the browser (ffmpeg.wasm, Whisper on WebGPU): a second engine to keep in step,
+  several times slower, trouble with files over ~2 GB. Revisit only if clients really need zero install.
+- **Security**: unchanged for the local page. The studio adds CORS for exactly one origin
+  (`WEB_ORIGINS`; `TBJ_REELS_WEB_ORIGINS` adds more, for testing only). `/api/pair` returns the launch token only when
+  the request's `Origin` is the website: browsers set `Origin` and pages can't, so no other site can pair; local
+  programs could, but they could read the files anyway. The Host check still blocks DNS rebinding. Preflights answer
+  `Access-Control-Allow-Private-Network` (older Chrome); current Chrome/Edge show a one-time "apps on this device"
+  (Local Network Access) prompt instead. The website's CSP only allows `connect/img/media` to `http://127.0.0.1:*`.
+- **Restarts**: a closed or restarted studio makes calls fail or return 403; the page re-pairs once and retries, and
+  on the first load it shows "Connect to the studio on this device" and keeps looking every 3 s.
+- **Versions**: the website updates on deploy, each device's studio when its folder updates. `API_VERSION` (page and
+  studio) only changes when they must move together; on a mismatch the page says which side to update.
+- **Next (not built)**: Google login + project sync across devices. Plan: sync each project's small files (preset,
+  transcript, notes) per Google account in the shared Supabase project (its own schema); footage stays on each device
+  and is relinked by name on the other one.
+
 ## Known limits / next steps (not built)
 - Room echo is not removed: that needs a dereverberation model (a new dependency). For a talk, a feed from the venue's
   mixing desk (`audio.source: screen` with the slides recording, or a separate recorder) beats any clean-up.
