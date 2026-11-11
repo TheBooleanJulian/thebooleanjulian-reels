@@ -9,7 +9,7 @@ Safety: listens on 127.0.0.1 only, checks the Host header, and every API call mu
 (the page receives it when it loads), so other websites open in the same browser cannot drive it. Jobs only run the
 scripts in this folder with validated arguments; there is no "run any command" endpoint.
 """
-import argparse, http.server, json, mimetypes, os, queue, re, secrets, shutil, subprocess, sys, threading, time
+import argparse, http.server, json, math, mimetypes, os, queue, re, secrets, shutil, subprocess, sys, threading, time
 import webbrowser
 from urllib.parse import parse_qs, urlparse
 
@@ -475,6 +475,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if u.path == '/api/graphics':
                 return self._send(200, preview_graphics(q.get('name', [''])[0], int(q.get('width', ['540'])[0])))
             if u.path == '/api/beats': return self._send(200, longform_json(q.get('name', [''])[0], '--beats'))
+            if u.path == '/api/audition':
+                t = float(q.get('t', ['0'])[0])
+                if not math.isfinite(t): raise ValueError('Bad time.')
+                return self._send(200, longform_json(q.get('name', [''])[0], '--audition', f'{max(0.0, t):.3f}'))
             if u.path == '/api/job':
                 j = JOBS.get(int(q.get('id', ['0'])[0]))
                 if not j: return self._err(404, 'No such job')

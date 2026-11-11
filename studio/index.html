@@ -1440,6 +1440,9 @@ function lookControls(get, set, opts = {}) {
   rows.push(sliderDef(slider('Saturation', g.saturation ?? 1, 0, 2, 0.01, gset('saturation')), 1));
   rows.push(sliderDef(slider('Temperature', g.temperature ?? 0, -1, 1, 0.01, gset('temperature'), v => ((+v) > 0 ? 'warm ' : (+v) < 0 ? 'cool ' : '') + Math.abs(+v).toFixed(2)), 0));
   rows.push(sliderDef(slider('Tint', g.tint ?? 0, -1, 1, 0.01, gset('tint'), v => ((+v) > 0 ? 'magenta ' : (+v) < 0 ? 'green ' : '') + Math.abs(+v).toFixed(2)), 0));
+  const dn = sliderDef(slider('Denoise (grain)', g.denoise ?? 0, 0, 1, 0.05, gset('denoise'), v => (+v) ? Math.round(v * 100) + '%' : 'off'), 0);
+  dn.title = 'Smooths sensor grain in low light. Export only: the live preview does not show it, Stills do. Double-click to reset';
+  rows.push(dn);
   return h('div', { class: 'col', style: 'gap: var(--space-2)' }, rows);
 }
 function renderSide() {
@@ -1531,6 +1534,8 @@ function inspector() {
     lookControls(() => ({ zoom: (S.P.preset.output || {}).zoom ?? 1, focus: (S.P.preset.output || {}).focus, rotate: (S.P.preset.output || {}).rotate ?? 0, grade: S.P.preset.grade || {} }),
       p => live(cc => { if ('grade' in p) cc.grade = p.grade; else cc.output = { ...(cc.output || {}), ...p }; })),
     h('hr', { class: 'sep' }),
+    soundPanel(),
+    h('hr', { class: 'sep' }),
     h('span', { class: 'heading' }, 'Captions'),
     h('div', { class: 'fields' },
       field('Style', select(capMode, [['words', 'Words'], ['lines', 'Subtitle lines'], ['off', 'Off']], v => mutate(cc => { cc.captions = { ...(typeof cc.captions === 'object' && cc.captions ? cc.captions : {}), mode: v }; }, { inspector: false }))),
@@ -1542,6 +1547,39 @@ function inspector() {
     capMode !== 'off' ? toggle('Uppercase', !!(cap.uppercase ?? st.uppercase), setCap('uppercase')) : null,
     h('span', { class: 'field__help' }, 'Switching between words and lines shows after the save (half a second).'));
   return wrap;
+}
+
+/* Sound clean-up (preset "audio"). The browser can't run the export's noise reduction, so "Listen" renders
+   10 s at the playhead twice, original and cleaned, matched in level, and plays them one after the other. */
+const AUDIO_LEVELS = [['off', 'Off'], ['light', 'Light'], ['medium', 'Medium'], ['strong', 'Strong']];
+function soundPanel() {
+  const a = S.P.preset.audio || {};
+  const setA = (k) => v => mutate(cc => { cc.audio = { ...(cc.audio || {}), [k]: v }; }, { inspector: false });
+  const status = h('span', { class: 'mono-sm', id: 'aud-status' }, '');
+  const btn = (kind, label) => h('button', { class: 'btn btn--sm', type: 'button', onclick: () => audition(kind, status) }, label);
+  return h('div', { class: 'col', style: 'gap: var(--space-2)' },
+    h('span', { class: 'heading' }, 'Sound'),
+    h('div', { class: 'fields' },
+      field('Noise reduction', select(a.denoise || 'off', AUDIO_LEVELS, setA('denoise'))),
+      field('Voice clarity', select(a.voice || 'off', AUDIO_LEVELS, setA('voice')))),
+    h('span', { class: 'field__help' }, 'Noise reduction takes out rumble and steady hiss (air-con, hum, a PA). Voice clarity thins the boom of a room and lifts the consonants. Both apply to the export; the live preview plays the original sound.'),
+    h('div', { class: 'row', style: 'flex-wrap: wrap' }, h('span', { class: 'label' }, 'Listen at the playhead'), btn('orig', 'Original'), btn('clean', 'Cleaned'), btn('ab', 'A then B'), status));
+}
+let AUD = null;
+async function audition(kind, status) {
+  if (!S.P.plan) return;
+  pause();
+  const [, src] = srcAt(ED.edl, ED.t);
+  status.textContent = 'preparing…';
+  try {
+    const r = await api(`/api/audition?name=${encodeURIComponent(S.P.name)}&t=${src.toFixed(3)}`);
+    if (r.error) { status.textContent = ''; return flash('warning', 'Could not prepare the sound', [].concat(r.error).join(' ')); }
+    if (AUD) AUD.pause();
+    AUD = AUD || new Audio();
+    const play = (k) => new Promise(res => { AUD.src = `/media?p=${encodeURIComponent(r[k])}&t=${TOKEN}&v=${Date.now()}`; AUD.onended = res; AUD.onerror = res; status.textContent = (k === 'orig' ? 'A: original' : 'B: cleaned') + ' from ' + fmtT(r.t); AUD.play().catch(res); });
+    if (kind === 'ab') { await play('orig'); await play('clean'); } else await play(kind);
+    status.textContent = r.note || '';
+  } catch (e) { status.textContent = ''; fail(e); }
 }
 
 function transcribeRow(fmt) {

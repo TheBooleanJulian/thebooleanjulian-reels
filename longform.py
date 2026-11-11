@@ -123,6 +123,60 @@ def grade_filter(g):
     return ('format=rgb24,' + ','.join(parts)) if parts else ''
 
 
+def denoise_filter(g):
+    """Video grain reduction (hqdn3d, spatial + temporal). 0 = off, 1 = 1.5x ffmpeg's default strength."""
+    s = float((g or {}).get('denoise', 0) or 0)
+    if s <= 0.01: return ''
+    k = 1.5 * min(1.0, s)
+    return f'hqdn3d={4 * k:.2f}:{3 * k:.2f}:{6 * k:.2f}:{4.5 * k:.2f}'
+
+
+# Sound clean-up: preset "audio": {"denoise": level, "voice": level}. Levels instead of sliders; tuned on a phone
+# recording of a talk in a hall (air-con rumble, PA, boomy room), see docs/longform.md.
+AUDIO_LEVELS = ('off', 'light', 'medium', 'strong')
+DENOISE = {'light': (80, 8, 1), 'medium': (90, 12, 2), 'strong': (100, 20, 2)}   # high-pass Hz, FFT reduction dB, stages
+# Two high-pass stages (24 dB/octave) took 30-60 Hz air-con rumble down 14 dB against 7 for one, for 0.7 dB off the voice.
+VOICE = {'light': (-2, 2, 1, 0.0), 'medium': (-4, 4, 2, 0.3), 'strong': (-6, 6, 3, 0.5)}   # dB at 220 Hz, 3.2 kHz, 9 kHz shelf; de-ess
+
+
+def cleanup_filter(audio, floor_db):
+    """ffmpeg audio filter for the clean-up levels, '' when both are off. floor_db is the measured room noise
+    (afftdn's own default of -50 dB sits far below a hall's noise, so it barely acts without it). No compressor:
+    measured, it lifts the room between words, and the final loudness pass already evens the level."""
+    a = audio or {}
+    dn, vo = a.get('denoise') or 'off', a.get('voice') or 'off'
+    parts = []
+    if dn in DENOISE:
+        hp, nr, stages = DENOISE[dn]
+        parts += [f'highpass=f={hp}'] * stages + [f'afftdn=nr={nr}:nf={min(-20.0, max(-80.0, float(floor_db))):.1f}']
+    elif vo in VOICE:
+        parts.append('highpass=f=80')
+    if vo in VOICE:
+        mud, pres, air, ds = VOICE[vo]
+        parts += [f'equalizer=f=220:t=q:w=1:g={mud}', f'equalizer=f=3200:t=q:w=1.2:g={pres}', f'highshelf=f=9000:g={air}']
+        if ds: parts.append(f'deesser=i={ds}')
+        parts.append('volume=-3dB')                   # headroom for the presence boost; loudness is set at the end
+    return ','.join(parts)
+
+
+def noise_floor(src):
+    """Room noise in dBFS: the 10th percentile of 50 ms levels (digital silence ignored). Measured at 48 kHz,
+    the rate the noise reduction runs at (a 16 kHz copy would read hiss ~5 dB low)."""
+    blk = 2400                                           # 50 ms at 48 kHz
+    p = subprocess.Popen([ffmpeg_exe(), '-v', 'error', '-i', src, '-vn', '-ac', '1', '-ar', str(SR), '-f', 's16le', '-'],
+                         stdout=subprocess.PIPE)
+    levels = []
+    while True:
+        chunk = p.stdout.read(blk * 2 * 1200)            # one minute at a time
+        if not chunk: break
+        x = np.frombuffer(chunk[:len(chunk) // (blk * 2) * blk * 2], '<i2').astype(np.float32) / 32768.0
+        if len(x): levels.append(20 * np.log10(np.sqrt((x.reshape(-1, blk) ** 2).mean(1)) + 1e-9))
+    if p.wait(): raise subprocess.CalledProcessError(p.returncode, 'ffmpeg (noise floor)')
+    db = np.concatenate(levels) if levels else np.zeros(0)
+    db = db[db > -90]
+    return round(float(np.percentile(db, 10)), 1) if len(db) else -60.0
+
+
 class Edit:
     """Every decision of the edit, no rendering: clips, edited word times, graphics, layouts, export settings."""
 
@@ -354,12 +408,86 @@ class Edit:
     def proxy_path(self): return os.path.join(self.cache, 'proxy.mp4')
 
     # ---------------------------------------------------------------- audio
-    def edited_audio(self, tmp):
-        """The edited soundtrack: source audio sliced at frame-aligned clip bounds, 12 ms fades at plain cuts,
-        equal-power crossfades at transitions."""
-        src, off = self.video, 0.0
+    def audio_source(self):
+        """(file, offset): the recording the soundtrack comes from; audio time = video time + offset."""
         if (self.cfg.get('audio') or {}).get('source') == 'screen' and self.screen:
-            src, off = self.screen_path, float(self.screen.get('offset', 0.0))
+            return self.screen_path, float(self.screen.get('offset', 0.0))
+        return self.video, 0.0
+
+    def _sig(self, path):
+        st = os.stat(path)
+        return f'{os.path.abspath(path)}|{st.st_size}|{st.st_mtime}'
+
+    def floor_db(self, src):
+        """Measured room noise of src, cached per file (one pass over the audio)."""
+        os.makedirs(self.cache, exist_ok=True)
+        cp = os.path.join(self.cache, f'floor_{hashlib.sha1(self._sig(src).encode()).hexdigest()[:16]}.json')
+        if os.path.exists(cp):
+            with open(cp, encoding='utf-8') as fh: return json.load(fh)['floor_db']
+        f = noise_floor(src)
+        with open(cp, 'w', encoding='utf-8') as fh: json.dump({'floor_db': f}, fh)
+        return f
+
+    def cleanup(self, src):
+        """The clean-up filter for src, '' when off."""
+        a = self.cfg.get('audio') or {}
+        if (a.get('denoise') or 'off') == 'off' and (a.get('voice') or 'off') == 'off': return ''
+        return cleanup_filter(a, self.floor_db(src))
+
+    def clean_audio(self, src):
+        """Whole-recording cleaned audio (48 kHz stereo wav), cached; None when clean-up is off. Cleaning the
+        continuous recording before it is cut keeps the noise reduction from pumping at every cut."""
+        af = self.cleanup(src)
+        if not af: return None
+        key = hashlib.sha1(f'{self._sig(src)}|{af}'.encode()).hexdigest()[:16]
+        out = os.path.join(self.cache, f'voice_{key}.wav')
+        if os.path.exists(out): return out
+        for f in os.listdir(self.cache):                 # one cleaned copy per project: they are big
+            if f.startswith('voice_') and f.endswith('.wav'):
+                try: os.remove(os.path.join(self.cache, f))
+                except OSError: pass
+        print('cleaning up the sound', flush=True)
+        part = out[:-4] + '.tmp.wav'
+        subprocess.check_call([ffmpeg_exe(), '-v', 'error', '-y', '-i', src, '-vn', '-af', af, '-ac', '2', '-ar', str(SR),
+                               '-c:a', 'pcm_s16le', part])
+        os.replace(part, out)
+        return out
+
+    def audition(self, t, length=10.0):
+        """Two short wavs at source time t, original and cleaned, matched in level so the louder one doesn't
+        just sound better. For the studio's A/B listen."""
+        src, off = self.audio_source()
+        if not probe(src)['audio']: return {'error': 'the recording has no sound'}
+        os.makedirs(self.cache, exist_ok=True)
+        dur = self.info['duration'] or 0
+        t0 = max(0.0, min(float(t) + off, max(0.0, dur - length)))
+        pre = min(3.0, t0)                               # let the noise reduction settle before the part you hear
+        af = self.cleanup(src)
+        res = {'t': round(t0 - off, 3), 'filter': af}
+        for kind, chain in (('orig', ''), ('clean', af)):
+            p = os.path.join(self.cache, f'audition_{kind}.wav')
+            filt = (chain + ',' if chain else '') + f'atrim=start={pre:.3f},asetpts=PTS-STARTPTS'
+            subprocess.check_call([ffmpeg_exe(), '-v', 'error', '-y', '-ss', f'{t0 - pre:.3f}', '-t', f'{length + pre:.3f}',
+                                   '-i', src, '-vn', '-af', filt, '-ac', '2', '-ar', str(SR), '-c:a', 'pcm_s16le', p])
+            res[kind] = p
+        levels = {}
+        for kind in ('orig', 'clean'):
+            with wave.open(res[kind], 'rb') as r:
+                x = np.frombuffer(r.readframes(r.getnframes()), '<i2').astype(np.float32)
+            levels[kind] = (x, float(np.sqrt(np.mean(x ** 2))) if len(x) else 0.0)
+        target = 32768 * 10 ** (-20 / 20)                # both at -20 dBFS RMS
+        for kind, (x, rms) in levels.items():
+            if rms > 1:
+                with wave.open(res[kind], 'wb') as w:
+                    w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
+                    w.writeframes(np.clip(x * (target / rms), -32768, 32767).astype('<i2').tobytes())
+        if not af: res['note'] = 'clean-up is off: both are the original'
+        return res
+
+    def edited_audio(self, tmp):
+        """The edited soundtrack: source audio (cleaned up when set) sliced at frame-aligned clip bounds,
+        12 ms fades at plain cuts, equal-power crossfades at transitions."""
+        src, off = self.audio_source()
         out = os.path.join(tmp, 'edit.wav')
         spf, fade = SR // self.fps, int(0.012 * SR)
         clips = self.edl.clips
@@ -367,9 +495,12 @@ class Edit:
             w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
             if not probe(src)['audio']:
                 w.writeframes(b'\0' * 4 * self.edl.n_frames * spf); return out
-            full = os.path.join(tmp, 'full.wav')
-            subprocess.check_call([ffmpeg_exe(), '-v', 'error', '-y', '-i', src, '-vn', '-ac', '2', '-ar', str(SR),
-                                   '-c:a', 'pcm_s16le', full])
+            full = self.clean_audio(src)
+            cleaned = bool(full)
+            if not cleaned:
+                full = os.path.join(tmp, 'full.wav')
+                subprocess.check_call([ffmpeg_exe(), '-v', 'error', '-y', '-i', src, '-vn', '-ac', '2', '-ar', str(SR),
+                                       '-c:a', 'pcm_s16le', full])
             with wave.open(full, 'rb') as r:
                 n_src, shift = r.getnframes(), int(round(off * SR))
                 pending = np.zeros((0, 2), np.float32)
@@ -395,7 +526,7 @@ class Edit:
                     keep = len(buf) - ov_out
                     w.writeframes(np.clip(buf[:keep], -32768, 32767).astype('<i2').tobytes())
                     pending = buf[keep:]
-            os.remove(full)
+            if not cleaned: os.remove(full)
         return out
 
     # ---------------------------------------------------------------- video: one clip
@@ -403,6 +534,8 @@ class Edit:
         """Rotate -> grade -> cover-fit at zoom / focus (-> slides layout). Appends filter lines to L."""
         fx, fy = look['focus']
         chain = []
+        dn = denoise_filter(look['grade'])               # at source size, before rotate/scale smear the grain
+        if dn: chain.append(dn)
         if abs(look['rotate']) > 1e-3:
             s = rotate_zoom(look['rotate'], self.info['width'] or W, self.info['height'] or H)
             chain.append(f"rotate=a={math.radians(look['rotate']):.6f}:ow=iw:oh=ih:c=black,"
@@ -821,11 +954,15 @@ def main(argv=None):
     ap.add_argument('--beats', action='store_true', help='print music beat times as JSON')
     ap.add_argument('--graphics', metavar='DIR', help='write preview PNGs of the graphics to DIR, print JSON')
     ap.add_argument('--width', type=int, default=540)
+    ap.add_argument('--audition', type=float, metavar='SECONDS',
+                    help='write 10 s of original and cleaned-up sound from this source time, print JSON')
     ap.add_argument('--out')
     a = ap.parse_args(argv)
     e = Edit(a.preset)
     if a.plan:
         print(json.dumps(e.plan(), ensure_ascii=False)); return 0
+    if a.audition is not None:
+        print(json.dumps(e.audition(a.audition))); return 0
     if a.beats:
         print(json.dumps(e.beats())); return 0
     if a.graphics:
