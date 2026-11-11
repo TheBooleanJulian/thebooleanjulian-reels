@@ -79,7 +79,37 @@ transitions and per-clip looks needed an edit decision list:
 - **Fixed on the way**: `output.zoom` had no effect in the first version (the zoomed image was cropped back to the
   zoomed size, then scaled down). It now crops in as documented; projects that set a zoom will look tighter.
 
+## Sound clean-up, video denoise, transcription fix (added 2026-11-11)
+Found on the first real talk (13.6 min, phone at the back of a hall, voice through a PA):
+
+- **The transcript stopped at 3:06.** faster-whisper's built-in speech detector (Silero VAD) classed 67 s of the
+  13.6 min as speech, and only those parts reach Whisper. A softer threshold still lost most of it (452 words). With the
+  detector off Whisper got 2,084 words to the end. `transcribe.py` now transcribes everything by default (`--vad` brings
+  the detector back for long, quiet recordings), with `condition_on_previous_text=False` (one misheard stretch can't
+  derail what follows) and `hallucination_silence_threshold=2` (no "Thank you." invented over applause). Costs time:
+  about 3 min of CPU for the 13.6 min talk here, against 17 s with the detector.
+- **What the room sounded like** (octave bands, speech vs the stretches between words): 30-60 Hz rumble as loud as the
+  voice itself (air-con / handling), the rest an echo tail ~11 dB under the speech with the same shape as speech, and a
+  boomy voice (125-250 Hz ~18 dB above 2-4 kHz). So the useful moves are a steep high-pass, a calibrated FFT denoise,
+  and EQ; spectral denoise can't do much about echo.
+- **`audio.denoise`**: high-pass (two stages at 90/100 Hz for medium/strong: rumble down 14 dB against 7 for one stage,
+  0.7 dB off the voice's low notes) + `afftdn` at the measured room noise (10th percentile of 50 ms levels, cached per
+  file). afftdn's default noise floor (-50 dB) sat far below this hall's (-32 dB), and at that setting every strength
+  measured the same.
+- **`audio.voice`**: -2/-4/-6 dB at 220 Hz, +2/+4/+6 dB at 3.2 kHz, a small 9 kHz shelf, de-essing, 3 dB headroom.
+  On the talk: +4.4 dB of 2-5 kHz relative to the whole. No compressor: measured, it raised the room between words by
+  2-4 dB, and the final loudness pass evens the level anyway.
+- The clean-up runs on the whole recording before it is cut (no pumping at cuts) and is cached in
+  `~/.tbj-reels/cache/<project>/voice_<hash>.wav` (one per project; 13.6 min took a few seconds).
+- **Listen** (studio) renders 10 s at the playhead twice, original and cleaned, both at -20 dBFS RMS so loudness
+  doesn't decide which sounds better. Nothing in the clean-up was judged by ear during development; Listen is how to judge.
+- **Video denoise** (`grade.denoise`, 0-1, per clip or project): `hqdn3d` at source size before rotate/scale; 1 = 1.5x
+  ffmpeg's default. On the hall footage at 0.6 the pixel-to-pixel variation went 2.41 -> 1.91 with the face intact.
+  Not in the live preview (Stills show it).
+
 ## Known limits / next steps (not built)
+- Room echo is not removed: that needs a dereverberation model (a new dependency). For a talk, a feed from the venue's
+  mixing desk (`audio.source: screen` with the slides recording, or a separate recorder) beats any clean-up.
 - Loudness is single-pass `loudnorm` (measured -15.4 LUFS against -14 on a 19 s test). A two-pass measure-then-apply
   would hit the target exactly; worth it if clips go to broadcast.
 - The live preview plays dissolves and dips as they render; wipes, slides, zoom and circle preview as a dissolve.
