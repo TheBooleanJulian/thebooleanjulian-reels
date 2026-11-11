@@ -5,9 +5,14 @@ presentation edits). Python standard library only; the page is studio/index.html
   studio.bat                    # same, using the tool environment that setup.bat creates
   python studio.py --port 9000 --no-browser
 
+The same page is also served at https://reels-editor.thebooleanjulian.dev (web/build.py + wrangler.jsonc). There it
+is only the interface: it finds this program on the device it is open on (127.0.0.1, ports 8765-8784), so the files,
+ffmpeg and transcription stay on that device. studio.bat opens the website; --local opens the page served from here.
+
 Safety: listens on 127.0.0.1 only, checks the Host header, and every API call must carry a token minted at launch
-(the page receives it when it loads), so other websites open in the same browser cannot drive it. Jobs only run the
-scripts in this folder with validated arguments; there is no "run any command" endpoint.
+(the page receives it when it loads), so other websites open in the same browser cannot drive it. The one website
+in WEB_ORIGINS may ask for the token (/api/pair) and read responses (CORS); browsers set Origin themselves, so no other
+site can. Jobs only run the scripts in this folder with validated arguments; there is no "run any command" endpoint.
 """
 import argparse, http.server, json, math, mimetypes, os, queue, re, secrets, shutil, subprocess, sys, threading, time
 import webbrowser
@@ -21,6 +26,10 @@ CACHE = os.environ.get('TBJ_REELS_CACHE') or os.path.join(os.path.expanduser('~'
 FONT_DIRS = (os.path.join(ROOT, 'fonts'), os.path.join(ROOT, 'fonts', 'ui'))
 PY = sys.executable
 TOKEN = secrets.token_urlsafe(24)
+API_VERSION = 1                       # bump when the page and this server must change together (the website checks it)
+WEB_URL = 'https://reels-editor.thebooleanjulian.dev/'
+WEB_ORIGINS = {WEB_URL.rstrip('/')} | {o.strip().rstrip('/') for o in os.environ.get('TBJ_REELS_WEB_ORIGINS', '').split(',')
+                                       if o.strip()}   # extra origins only for testing a copy of the website
 NAME_RE = re.compile(r'[A-Za-z0-9][A-Za-z0-9._-]{0,79}')
 MAX_BODY = 20 * 1024 * 1024
 WIN = os.name == 'nt'
@@ -435,6 +444,25 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _token_ok(self, q):
         return secrets.compare_digest(self.headers.get('X-Token') or (q.get('t') or [''])[0], TOKEN)
 
+    def _web(self):                       # the request comes from the website (browsers set Origin, pages can't)
+        return (self.headers.get('Origin') or '') in WEB_ORIGINS
+
+    def end_headers(self):                # every response may be read by the website, and only by it
+        if self._web():
+            self.send_header('Access-Control-Allow-Origin', self.headers['Origin'])
+            self.send_header('Vary', 'Origin')
+        super().end_headers()
+
+    def do_OPTIONS(self):                 # CORS + local network access preflight from the website
+        if not self._host_ok() or not self._web(): return self._err(403, 'Forbidden')
+        self.send_response(204)
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST')
+        self.send_header('Access-Control-Allow-Headers', 'X-Token, Content-Type')
+        self.send_header('Access-Control-Allow-Private-Network', 'true')
+        self.send_header('Access-Control-Max-Age', '600')
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
     def do_HEAD(self): self.do_GET()
 
     def do_GET(self):
@@ -453,6 +481,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if name.endswith('.ttf') and os.path.isfile(p):
                     with open(p, 'rb') as fh: return self._send(200, fh.read(), 'font/ttf', {'Cache-Control': 'max-age=86400'})
             return self._err(404, 'no such font')
+        if u.path == '/api/pair':         # the website, open on this device, asks for this launch's token
+            if not self._web(): return self._err(403, 'Only the TBJ Reels website can pair with the studio')
+            return self._send(200, {'app': 'tbj-reels', 'token': TOKEN, 'version': API_VERSION})
         if not self._token_ok(q): return self._err(403, 'Missing or wrong token. Reload the page.')
         try:
             if u.path == '/media': return self._media(q.get('p', [''])[0])
@@ -613,6 +644,7 @@ def main():
     ap = argparse.ArgumentParser(description='TBJ Reels Studio')
     ap.add_argument('--port', type=int, default=8765)
     ap.add_argument('--no-browser', action='store_true')
+    ap.add_argument('--local', action='store_true', help='open the page served by this program instead of the website')
     a = ap.parse_args()
     os.makedirs(PROJECTS, exist_ok=True)
     threading.Thread(target=worker, daemon=True).start()
@@ -624,8 +656,9 @@ def main():
             continue
     if not srv: sys.exit('No free port near %d' % a.port)
     url = f'http://127.0.0.1:{srv.server_address[1]}/'
-    print(f'TBJ Reels Studio: {url}   (Ctrl+C to stop)', flush=True)
-    if not a.no_browser: threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+    print(f'TBJ Reels Studio is running on this device. Keep this window open (Ctrl+C to stop).\n'
+          f'  Website:   {WEB_URL}\n  Offline:   {url}', flush=True)
+    if not a.no_browser: threading.Timer(0.6, lambda: webbrowser.open(url if a.local else WEB_URL)).start()
     try: srv.serve_forever()
     except KeyboardInterrupt: print('Stopped.')
 

@@ -317,7 +317,13 @@ dialog::backdrop { background: var(--scrim); }
 
 <script>
 'use strict';
-const TOKEN = '__TOKEN__';
+/* Two ways to open this page. Served by studio.py on this device: the token is written in at load, the API is this
+   origin. Served by the website (reels-editor.thebooleanjulian.dev): the page is only the interface; it finds
+   studio.py running on the device it is open on (127.0.0.1) and pairs with it, so files and processing stay local. */
+const BAKED_TOKEN = '__TOKEN__';
+const HOSTED = !['127.0.0.1', 'localhost'].includes(location.hostname);
+const API_VERSION = 1;                       // must match studio.py's API_VERSION
+let TOKEN = HOSTED ? '' : BAKED_TOKEN, BASE = '', HELPER = null;
 
 /* ================================================================ helpers */
 const $ = (s, el = document) => el.querySelector(s);
@@ -361,13 +367,58 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem('tbj-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('tbj-' + k, JSON.stringify(v)); } catch (e) {} },
 };
-async function api(path, body) {
-  const r = await fetch(path, { method: body ? 'POST' : 'GET', headers: { 'X-Token': TOKEN, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+async function api(path, body, again = HOSTED) {
+  let r;
+  try { r = await fetch(BASE + path, { method: body ? 'POST' : 'GET', headers: { 'X-Token': TOKEN, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }); }
+  catch (e) {                                // website: the studio window was closed or restarted
+    if (again && await pairHelper()) return api(path, body, false);
+    throw new Error(HOSTED ? 'Lost the connection to the studio on this device. Is its window (studio.bat) still open?' : String(e.message || e));
+  }
+  if (r.status === 403 && again && await pairHelper()) return api(path, body, false);   // restarted: new token
   let j; try { j = await r.json(); } catch (e) { j = { error: `Bad response (${r.status})` }; }
   if (!r.ok) throw new Error(j.error || `Request failed (${r.status})`);
   return j;
 }
-const media = p => `/media?t=${encodeURIComponent(TOKEN)}&p=${encodeURIComponent(p)}`;
+const media = p => `${BASE}/media?t=${encodeURIComponent(TOKEN)}&p=${encodeURIComponent(p)}`;
+
+/* website only: find studio.py on this device (it takes the first free port from 8765) */
+async function findHelper() {
+  const ask = p => fetch(`http://127.0.0.1:${p}/api/pair`, { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : null).then(j => j && j.app === 'tbj-reels' ? { ...j, port: p } : null).catch(() => null);
+  const last = store.get('helper-port', 8765);
+  const hit = await ask(last);
+  if (hit) return hit;
+  const found = await Promise.all(Array.from({ length: 20 }, (_, i) => 8765 + i).filter(p => p !== last).map(ask));
+  return found.find(Boolean) || null;
+}
+async function pairHelper() {
+  const f = await findHelper();
+  if (!f) return false;
+  HELPER = f; TOKEN = f.token; BASE = `http://127.0.0.1:${f.port}`; store.set('helper-port', f.port);
+  return true;
+}
+function viewConnect(tries) {
+  const steps = h('ol', { class: 'body-sm', style: 'margin:0;padding-left:1.2em;display:grid;gap:6px' },
+    h('li', {}, 'Open the studio on this device: double-click ', h('span', { class: 'mono' }, 'studio.bat'), ' in the thebooleanjulian-reels folder, and keep its window open.'),
+    h('li', {}, 'If your browser asks to let this site use apps or devices on your network, choose ', h('strong', {}, 'Allow'), '. That lets this page talk to the studio on this device, and nothing else.'),
+    h('li', {}, 'First time on this device: download the tool from ', h('a', { href: 'https://github.com/TheBooleanJulian/thebooleanjulian-reels', target: '_blank', rel: 'noopener' }, 'GitHub'), ' and double-click ', h('span', { class: 'mono' }, 'polaroid-reel\\setup.bat'), ' once (Windows; installs Python, ffmpeg and the transcriber).'));
+  return h('section', { class: 'panel col', style: 'max-width:640px' },
+    h('h2', { class: 'panel__title' }, 'Connect to the studio on this device'),
+    h('span', { class: 'body-sm' }, 'This website is only the editor. Your footage, renders and transcription stay on the device you are using, run by the studio program.'),
+    steps,
+    h('div', { class: 'row', style: 'gap:12px;align-items:center' },
+      h('button', { class: 'btn btn--primary', type: 'button', onclick: () => CONNECT.wake && CONNECT.wake() }, 'Try again'),
+      h('span', { class: 'field__help', 'aria-live': 'polite' }, tries > 1 ? `Looking every few seconds (tried ${tries} times).` : 'Looking for it now.')),
+    h('span', { class: 'field__help' }, 'Studio window open but still not found? It may be older than this website: update the folder (Drive or git pull), then close and reopen studio.bat.'));
+}
+const CONNECT = { wake: null };
+async function connectHelper() {             // keeps looking until the studio answers
+  for (let tries = 1; ; tries++) {
+    if (await pairHelper()) return;
+    $('#main').replaceChildren(viewConnect(tries));
+    await new Promise(res => { CONNECT.wake = res; setTimeout(res, 3000); });
+  }
+}
 const fmtT = t => { if (t === null || t === undefined || isNaN(t)) return '–'; t = Math.max(0, t); const m = Math.floor(t / 60); return `${String(m).padStart(2, '0')}:${(t - m * 60).toFixed(1).padStart(4, '0')}`; };
 const fmtDur = t => { if (!t && t !== 0) return '–'; const m = Math.floor(t / 60), s = Math.round(t - m * 60); return `${m}:${String(s).padStart(2, '0')}`; };
 const fmtSize = b => b > 1e9 ? (b / 1e9).toFixed(2) + ' GB' : b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' kB';
@@ -1576,7 +1627,7 @@ async function audition(kind, status) {
     if (r.error) { status.textContent = ''; return flash('warning', 'Could not prepare the sound', [].concat(r.error).join(' ')); }
     if (AUD) AUD.pause();
     AUD = AUD || new Audio();
-    const play = (k) => new Promise(res => { AUD.src = `/media?p=${encodeURIComponent(r[k])}&t=${TOKEN}&v=${Date.now()}`; AUD.onended = res; AUD.onerror = res; status.textContent = (k === 'orig' ? 'A: original' : 'B: cleaned') + ' from ' + fmtT(r.t); AUD.play().catch(res); });
+    const play = (k) => new Promise(res => { AUD.src = media(r[k]) + `&v=${Date.now()}`; AUD.onended = res; AUD.onerror = res; status.textContent = (k === 'orig' ? 'A: original' : 'B: cleaned') + ' from ' + fmtT(r.t); AUD.play().catch(res); });
     if (kind === 'ab') { await play('orig'); await play('clean'); } else await play(kind);
     status.textContent = r.note || '';
   } catch (e) { status.textContent = ''; fail(e); }
@@ -2095,6 +2146,11 @@ $('#theme').addEventListener('click', () => {
 });
 (async function boot() {
   setThemeButton(); renderNav();
+  if (HOSTED) {
+    await connectHelper();
+    if (HELPER.version !== API_VERSION) flash('warning', HELPER.version < API_VERSION ? 'The studio on this device is older than the website' : 'This page is older than the studio on this device',
+      HELPER.version < API_VERSION ? 'Update the thebooleanjulian-reels folder (Drive or git pull), then close and reopen studio.bat.' : 'Reload the page (Ctrl+F5).');
+  }
   try { S.env = await api('/api/env'); } catch (e) {}
   await refreshStateOnce();
   for (const j of S.state.jobs) if (j.status === 'done' || j.status === 'failed') S.seenDone.add(j.id);
