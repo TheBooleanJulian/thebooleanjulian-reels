@@ -81,6 +81,8 @@ test('callback refuses a wrong state or a token for another app', async () => {
 test('not configured: page still served, sign-in hidden, cloud routes 503', async () => {
   const bare = { ASSETS: env.ASSETS };
   assert.deepEqual(await (await call('/auth/me', {}, bare)).json(), { configured: false, user: null });
+  const noDb = { ...env, SQL: undefined };           // Google secrets set before the database: still hidden
+  assert.deepEqual(await (await call('/auth/me', {}, noDb)).json(), { configured: false, user: null });
   assert.equal((await call('/cloud/projects', {}, bare)).status, 503);
   assert.equal(await (await call('/', {}, bare)).text(), '<!doctype html>page');
 });
