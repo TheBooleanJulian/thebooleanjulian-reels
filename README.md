@@ -17,6 +17,12 @@ studio window open while you edit. The first time, the browser asks to let the s
 it (that is the studio on `127.0.0.1`, nothing else). Offline, or to skip the website: `studio.bat --local` opens
 `http://127.0.0.1:8765` served by the studio itself. Same page either way.
 
+**Sign in with Google** (website only) to open your interview and presentation projects on every device: Projects ->
+Your account -> Upload. After that, saves sync on their own, and a project changed on another device updates when you
+open it. Only the edit, transcript and notes go to your account; on another device the studio finds that device's copy
+of the footage by file name and size, or shows **Find files**. If both devices changed the same project, Projects asks
+which version to keep. (Needs the one-time setup in `web/worker/index.js`'s header: Google client + database.)
+
 | Section | What it does |
 |---|---|
 | Polaroid recap | Pick a photo folder (no more drag-and-drop), music, background / end card, length, size; Draft or Render; the result plays in the page |
@@ -145,7 +151,8 @@ Each scene's `still: {t, bg}` picks the preview moment and (optionally) a saved 
 | file | role |
 |---|---|
 | `studio.py`, `studio/index.html`, `studio.bat` | TBJ Reels Studio: local UI server (stdlib) and its single-file page |
-| `web/build.py`, `wrangler.jsonc` | The same page published at reels-editor.thebooleanjulian.dev (static Worker; the editing stays on each device) |
+| `web/build.py`, `wrangler.jsonc` | The same page published at reels-editor.thebooleanjulian.dev (the editing stays on each device) |
+| `web/worker/` | That site's Worker: Google sign-in and projects kept in your account (`node --test` there) |
 | `longform.py` | interview / presentation engine: edit plan, per-clip render, transitions, overlays, export, stills, proxy |
 | `edl.py` | the edit decision list: ordered clips, transitions, source <-> edit time (mirrored in the studio preview) |
 | `beats.py` | tempo and beat times of a music bed (numpy), for beatmatching |

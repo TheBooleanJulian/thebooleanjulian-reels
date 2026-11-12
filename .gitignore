@@ -28,3 +28,4 @@ projects/*
 # website build (python web/build.py) and wrangler state
 web/dist/
 .wrangler/
+web/worker/node_modules/
