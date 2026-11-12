@@ -30,7 +30,8 @@ export class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
-const configured = (env) => Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.SESSION_SECRET);
+// Sign-in shows only when it can work end to end: Google client, cookie key and the database binding.
+const configured = (env) => Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.SESSION_SECRET && (env.HYPERDRIVE || env.SQL));
 
 // ── cookies (AES-GCM sealed, same scheme as rothko-cal) ──────────────────────────────────────────────────────
 const b64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
