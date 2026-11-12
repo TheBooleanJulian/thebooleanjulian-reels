@@ -14,7 +14,7 @@ WEB = 'https://reels-editor.thebooleanjulian.dev'
 
 @pytest.fixture(scope='module')
 def port():
-    srv = studio.http.server.ThreadingHTTPServer(('127.0.0.1', 0), studio.Handler)
+    srv = studio.Server(('127.0.0.1', 0), studio.Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     yield srv.server_address[1]
     srv.shutdown()
@@ -71,6 +71,16 @@ def test_build_publishes_page_and_fonts_only(tmp_path, monkeypatch):
     assert {f'fonts/{n}' for n in fonts} <= set(files) and len(fonts) >= 7
     hdr = (tmp_path / 'dist' / '_headers').read_text()
     assert "connect-src 'self' http://127.0.0.1:*" in hdr and "frame-ancestors 'none'" in hdr
+
+
+def test_dropped_connections_print_nothing(capsys):
+    srv = studio.Server(('127.0.0.1', 0), studio.Handler)
+    try:
+        try: raise ConnectionResetError(10054, 'closed by the remote host')
+        except ConnectionResetError: srv.handle_error(None, ('127.0.0.1', 1))
+        assert capsys.readouterr().err == ''
+    finally:
+        srv.server_close()
 
 
 def test_page_versions_match():

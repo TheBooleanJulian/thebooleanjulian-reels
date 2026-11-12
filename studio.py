@@ -419,6 +419,14 @@ BUILDERS = {'polaroid': build_polaroid, 'new': build_new, 'transcribe': build_tr
 
 
 # ---------------------------------------------------------------- HTTP
+class Server(http.server.ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        # A browser dropping a connection (seeking a video, reloading, a refused permission) is not an error worth
+        # a traceback in the studio window.
+        if isinstance(sys.exc_info()[1], (ConnectionError, TimeoutError)): return
+        super().handle_error(request, client_address)
+
+
 class Handler(http.server.BaseHTTPRequestHandler):
     server_version = 'TBJReelsStudio/1'
 
@@ -651,7 +659,7 @@ def main():
     srv = None
     for port in range(a.port, a.port + 20):                 # next free port if 8765 is taken
         try:
-            srv = http.server.ThreadingHTTPServer(('127.0.0.1', port), Handler); break
+            srv = Server(('127.0.0.1', port), Handler); break
         except OSError:
             continue
     if not srv: sys.exit('No free port near %d' % a.port)
