@@ -21,6 +21,9 @@ HEADERS = f"""/*
   Content-Security-Policy: {CSP}
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
+/
+  Cache-Control: no-cache
+/index.html
   Cache-Control: no-cache
 /fonts/*
   Cache-Control: public, max-age=604800
