@@ -127,9 +127,24 @@ a Google login to see the same projects on every device.
   on the first load it shows "Connect to the studio on this device" and keeps looking every 3 s.
 - **Versions**: the website updates on deploy, each device's studio when its folder updates. `API_VERSION` (page and
   studio) only changes when they must move together; on a mismatch the page says which side to update.
-- **Next (not built)**: Google login + project sync across devices. Plan: sync each project's small files (preset,
-  transcript, notes) per Google account in the shared Supabase project (its own schema); footage stays on each device
-  and is relinked by name on the other one.
+- **Your account (Google sign-in + sync, added 2026-11-12, dormant until set up)**: `web/worker/index.js` runs first
+  for `/auth/*` and `/cloud/*`; everything else is the static page. Sign-in is Google's code flow with identity scopes
+  only (`openid email profile`), the same sealed-cookie scheme as rothko-cal; no Google token is kept, and the database
+  stores Google's account id (`sub`), not the email. Each interview/presentation project you upload is kept as one
+  bundle (preset text, transcript, notes, and each media file's name + size) in schema `thebooleanjulian_reels`
+  (thebooleanjulian-db migration `20261112120000`), stored as text so the Worker never parses it (Free plan CPU).
+  - **Sync rule**: each device records, per project and account, the account copy's `updated_at` and a hash of its own
+    files at the last sync (`projects/<name>/.sync.json`). Changed here only: uploaded 4 s after a save. Changed in the
+    account only: downloaded when the project opens. Changed in both: nothing is overwritten; Projects offers "Keep
+    this device's" / "Use the account's". The server enforces it too (`base` must match, else 409).
+  - **Footage on the other device**: media paths are looked up by file name + size in `~/.tbj-reels/media_index.json`
+    (every file a project on this device has used); same name, different size is not trusted (cameras reuse C0001).
+    Still missing: the editor shows "Find files"; pointing at one also fixes the others in that folder.
+  - Downloading over an existing project keeps the previous preset in `work/backup/`. Reel presets don't sync.
+  - Tested: Worker unit tests (sign-in, separate accounts, 409, cross-site writes, limits), helper tests (two simulated
+    devices), and the whole flow in headless Edge against the real Worker code with a fake database and fake Google:
+    upload on A, download on B with footage elsewhere, Find files, auto-sync after an edit, pull on A with A's own
+    footage paths, and a two-device conflict. Not tested: real Google sign-in and the real database (not set up yet).
 
 ## Known limits / next steps (not built)
 - Room echo is not removed: that needs a dereverberation model (a new dependency). For a talk, a feed from the venue's

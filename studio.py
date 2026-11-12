@@ -14,7 +14,7 @@ Safety: listens on 127.0.0.1 only, checks the Host header, and every API call mu
 in WEB_ORIGINS may ask for the token (/api/pair) and read responses (CORS); browsers set Origin themselves, so no other
 site can. Jobs only run the scripts in this folder with validated arguments; there is no "run any command" endpoint.
 """
-import argparse, http.server, json, math, mimetypes, os, queue, re, secrets, shutil, subprocess, sys, threading, time
+import argparse, http.server, json, math, mimetypes, os, platform, queue, re, secrets, shutil, subprocess, sys, threading, time
 import webbrowser
 from urllib.parse import parse_qs, urlparse
 
@@ -26,7 +26,7 @@ CACHE = os.environ.get('TBJ_REELS_CACHE') or os.path.join(os.path.expanduser('~'
 FONT_DIRS = (os.path.join(ROOT, 'fonts'), os.path.join(ROOT, 'fonts', 'ui'))
 PY = sys.executable
 TOKEN = secrets.token_urlsafe(24)
-API_VERSION = 1                       # bump when the page and this server must change together (the website checks it)
+API_VERSION = 2                      # bump when the page and this server must change together (the website checks it)
 WEB_URL = 'https://reels-editor.thebooleanjulian.dev/'
 WEB_ORIGINS = {WEB_URL.rstrip('/')} | {o.strip().rstrip('/') for o in os.environ.get('TBJ_REELS_WEB_ORIGINS', '').split(',')
                                        if o.strip()}   # extra origins only for testing a copy of the website
@@ -196,9 +196,161 @@ def project_detail(name):
     stills = files_in(os.path.join(work, 'stills'), ('.jpg',))
     if not stills: stills = files_in(os.path.join(ROOT, 'stills', cfg.get('name', name)), ('.jpg',))
     k = kind_of(cfg)
+    paths = [resolve(d, c[key]) for c, key in media_refs(cfg)]
+    remember_media(p for p in paths if os.path.isfile(p))
+    missing = [c[key] for c, key in media_refs(cfg) if not os.path.isfile(resolve(d, c[key]))] if k != 'reel' else []
     return {'name': name, 'kind': k, 'preset': cfg, 'preset_text': text, 'notes': notes,
-            'video': resolve(d, cfg.get('video', '')), 'transcript_path': tp, 'words': words,
+            'video': resolve(d, cfg.get('video', '')), 'transcript_path': tp, 'words': words, 'missing': missing,
             'outputs': outputs, 'stills': stills, 'plan': plan(name) if k != 'reel' else None}
+
+
+# ---------------------------------------------------------------- projects in your account (website sync)
+# The website keeps a copy of each interview/presentation project's small files in your account (preset, transcript,
+# notes, and the name + size of each media file). Footage never leaves the device: when a project arrives on another
+# device, each media path is looked up by file name + size among the files this device has used before
+# (~/.tbj-reels/media_index.json), and anything still missing is shown so you can point at it once ("Find files").
+MEDIA_INDEX = os.path.join(os.path.dirname(CACHE), 'media_index.json')
+INDEX_LOCK = threading.Lock()
+SYNC_FILE = '.sync.json'                 # per project: {account email: {updated_at, hash}} as of the last sync here
+
+
+def media_refs(cfg):
+    """(container, key) for every media file a long-form preset points at."""
+    refs = []
+    if cfg.get('video'): refs.append((cfg, 'video'))
+    if isinstance(cfg.get('screen'), dict) and cfg['screen'].get('video'): refs.append((cfg['screen'], 'video'))
+    for b in cfg.get('broll') or []:
+        if isinstance(b, dict) and b.get('file'): refs.append((b, 'file'))
+    if isinstance(cfg.get('music'), dict) and cfg['music'].get('file'): refs.append((cfg['music'], 'file'))
+    return refs
+
+
+def base_name(p):                         # works on paths written by Windows or macOS
+    return re.split(r'[\\/]', str(p))[-1]
+
+
+def _index_key(p, size): return f'{base_name(p).lower()}|{size}'
+
+
+def _read_index():
+    try: return read_json(MEDIA_INDEX)
+    except Exception: return {}
+
+
+def remember_media(paths):
+    found = {}
+    for p in paths:
+        try: found[_index_key(p, os.path.getsize(p))] = os.path.abspath(p)
+        except OSError: pass
+    if not found: return
+    with INDEX_LOCK:
+        idx = _read_index()
+        if all(idx.get(k) == v for k, v in found.items()): return
+        idx.update(found)
+        os.makedirs(os.path.dirname(MEDIA_INDEX), exist_ok=True)
+        write_atomic(MEDIA_INDEX, json.dumps(idx, indent=1, ensure_ascii=False))
+
+
+def find_media(p, size):
+    if size is None: return ''
+    hit = _read_index().get(_index_key(p, size), '')
+    return hit if hit and os.path.isfile(hit) and os.path.getsize(hit) == size else ''
+
+
+def read_sync(d):
+    try: return read_json(os.path.join(d, SYNC_FILE))
+    except Exception: return {}
+
+
+def write_sync(d, account, updated_at, digest):
+    if not isinstance(account, str) or not account or len(account) > 200: raise ValueError('Bad account')
+    s = read_sync(d)
+    s[account] = {'updated_at': str(updated_at or ''), 'hash': str(digest or '')}
+    write_atomic(os.path.join(d, SYNC_FILE), json.dumps(s, indent=1))
+
+
+def bundle_hash(b):
+    import hashlib
+    core = json.dumps({k: b.get(k) for k in ('preset', 'notes', 'transcript')}, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(core.encode('utf-8')).hexdigest()
+
+
+def project_bundle(name):
+    d = project_dir(name)
+    with open(os.path.join(d, 'preset.json'), encoding='utf-8') as fh: text = fh.read()
+    cfg = json.loads(text)
+    if kind_of(cfg) == 'reel': raise ValueError('Reel presets stay on this device; only interviews and presentations sync')
+    tp = transcript_path(d, cfg)
+    transcript = None
+    if tp and os.path.isfile(tp):
+        with open(tp, encoding='utf-8') as fh: transcript = {'file': base_name(tp), 'text': fh.read()}
+    notes_p = os.path.join(d, 'notes.md')
+    notes = open(notes_p, encoding='utf-8').read() if os.path.exists(notes_p) else ''
+    media = []
+    for c, key in media_refs(cfg):
+        p = resolve(d, c[key])
+        media.append({'path': c[key], 'size': os.path.getsize(p) if os.path.isfile(p) else None})
+    remember_media(resolve(d, m['path']) for m in media if m['size'] is not None)
+    b = {'v': 1, 'name': name, 'kind': kind_of(cfg), 'preset': text, 'notes': notes, 'transcript': transcript, 'media': media}
+    return {'bundle': b, 'hash': bundle_hash(b), 'sync': read_sync(d)}
+
+
+def apply_bundle(a):
+    """Writes a project that came from your account onto this device. The previous preset is kept in work/backup/."""
+    b = a.get('bundle')
+    if not isinstance(b, dict) or b.get('v') != 1: raise ValueError('Not a project from the website')
+    name = b.get('name')
+    if not isinstance(name, str) or not NAME_RE.fullmatch(name): raise ValueError('bad project name')
+    try: cfg = json.loads(b.get('preset') or '')
+    except json.JSONDecodeError: raise ValueError('The project in your account is damaged (preset is not JSON)')
+    if not isinstance(cfg, dict) or kind_of(cfg) == 'reel': raise ValueError('Only interviews and presentations sync')
+    d = os.path.join(PROJECTS, name)
+    if os.path.isfile(os.path.join(d, 'preset.json')):
+        backup = os.path.join(d, 'work', 'backup')
+        os.makedirs(backup, exist_ok=True)
+        shutil.copyfile(os.path.join(d, 'preset.json'), os.path.join(backup, time.strftime('preset-%Y%m%d-%H%M%S.json')))
+    os.makedirs(os.path.join(d, 'src'), exist_ok=True)
+    changed = False
+    sizes = {m.get('path'): m.get('size') for m in b.get('media') or [] if isinstance(m, dict)}
+    for c, key in media_refs(cfg):                        # this device's copy of each file, found by name + size
+        if os.path.isfile(resolve(d, c[key])): continue
+        hit = find_media(c[key], sizes.get(c[key]))
+        if hit: c[key], changed = hit, True
+    t = b.get('transcript')
+    if isinstance(t, dict) and isinstance(t.get('text'), str):
+        target = transcript_path(d, cfg)
+        if not target or not inside(target, d):           # transcripts live in the project folder on this device
+            fname = re.sub(r'[^\w.-]+', '-', base_name(t.get('file') or 'transcript.words.json')) or 'transcript.words.json'
+            cfg['transcript'] = 'src/' + fname
+            target, changed = os.path.join(d, 'src', fname), True
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        write_atomic(target, t['text'])
+    text = json.dumps(cfg, indent=2, ensure_ascii=False) + '\n' if changed else b['preset']
+    write_atomic(os.path.join(d, 'preset.json'), text)
+    write_atomic(os.path.join(d, 'notes.md'), str(b.get('notes') or ''))
+    local = project_bundle(name)
+    if a.get('account'): write_sync(d, a['account'], a.get('updated_at'), local['hash'])
+    missing = [c[key] for c, key in media_refs(cfg) if not os.path.isfile(resolve(d, c[key]))]
+    return {'ok': True, 'missing': missing, 'hash': local['hash']}
+
+
+def relink(a):
+    """Points the project at a file on this device, and at any other missing file found in the same folder."""
+    d = project_dir(a.get('name'))
+    picked = need_file(a.get('path'), 'File')
+    folder = os.path.dirname(picked)
+    cfg = read_json(os.path.join(d, 'preset.json'))
+    fixed = 0
+    for c, key in media_refs(cfg):
+        if os.path.isfile(resolve(d, c[key])): continue
+        if c[key] == a.get('ref'): c[key] = picked
+        elif os.path.isfile(os.path.join(folder, base_name(c[key]))): c[key] = os.path.join(folder, base_name(c[key]))
+        else: continue
+        fixed += 1
+        remember_media([c[key]])
+    if fixed: write_atomic(os.path.join(d, 'preset.json'), json.dumps(cfg, indent=2, ensure_ascii=False) + '\n')
+    missing = [c[key] for c, key in media_refs(cfg) if not os.path.isfile(resolve(d, c[key]))]
+    return {'ok': True, 'fixed': fixed, 'missing': missing}
 
 
 def env_info():
@@ -491,7 +643,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._err(404, 'no such font')
         if u.path == '/api/pair':         # the website, open on this device, asks for this launch's token
             if not self._web(): return self._err(403, 'Only the TBJ Reels website can pair with the studio')
-            return self._send(200, {'app': 'tbj-reels', 'token': TOKEN, 'version': API_VERSION})
+            return self._send(200, {'app': 'tbj-reels', 'token': TOKEN, 'version': API_VERSION,
+                                    'device': platform.node()[:60]})
         if not self._token_ok(q): return self._err(403, 'Missing or wrong token. Reload the page.')
         try:
             if u.path == '/media': return self._media(q.get('p', [''])[0])
@@ -509,6 +662,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                                               'end_card': os.path.join(POLAROID, 'template2', 'end_card.png'),
                                                               'desk': os.path.join(POLAROID, 'template2', 'desk.jpg')}})
             if u.path == '/api/env': return self._send(200, env_info())
+            if u.path == '/api/bundle': return self._send(200, project_bundle(q.get('name', [''])[0]))
             if u.path == '/api/project': return self._send(200, project_detail(q.get('name', [''])[0]))
             if u.path == '/api/plan': return self._send(200, plan(q.get('name', [''])[0]))
             if u.path == '/api/graphics':
@@ -549,6 +703,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if u.path == '/api/open': return self._send(200, self._open(a.get('path', '')))
             if u.path == '/api/save': return self._send(200, self._save(a))
             if u.path == '/api/transcript': return self._send(200, self._save_words(a))
+            if u.path == '/api/bundle': return self._send(200, apply_bundle(a))
+            if u.path == '/api/synced':
+                write_sync(project_dir(a.get('name')), a.get('account'), a.get('updated_at'), a.get('hash'))
+                return self._send(200, {'ok': True})
+            if u.path == '/api/relink': return self._send(200, relink(a))
             if u.path == '/api/notes':
                 d = project_dir(a.get('name'))
                 write_atomic(os.path.join(d, 'notes.md'), str(a.get('notes', '')))

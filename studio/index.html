@@ -302,7 +302,7 @@ dialog::backdrop { background: var(--scrim); }
 <div class="shell">
   <header class="shell__title">
     <div class="shell__brand"><span class="shell__mark" aria-hidden="true"></span><span>TBJ Reels Studio</span></div>
-    <button class="btn btn--ghost btn--sm" id="theme" type="button" title="Switch theme">Light</button>
+    <div class="row" style="gap:8px"><span id="account"></span><button class="btn btn--ghost btn--sm" id="theme" type="button" title="Switch theme">Light</button></div>
   </header>
   <nav class="shell__side" id="nav" aria-label="Sections"></nav>
   <main class="shell__main" id="main"></main>
@@ -322,7 +322,7 @@ dialog::backdrop { background: var(--scrim); }
    studio.py running on the device it is open on (127.0.0.1) and pairs with it, so files and processing stay local. */
 const BAKED_TOKEN = '__TOKEN__';
 const HOSTED = !['127.0.0.1', 'localhost'].includes(location.hostname);
-const API_VERSION = 1;                       // must match studio.py's API_VERSION
+const API_VERSION = 2;                       // must match studio.py's API_VERSION
 let TOKEN = HOSTED ? '' : BAKED_TOKEN, BASE = '', HELPER = null;
 
 /* ================================================================ helpers */
@@ -377,8 +377,10 @@ async function api(path, body, again = HOSTED) {
   if (r.status === 403 && again && await pairHelper()) return api(path, body, false);   // restarted: new token
   let j; try { j = await r.json(); } catch (e) { j = { error: `Bad response (${r.status})` }; }
   if (!r.ok) throw new Error(j.error || `Request failed (${r.status})`);
+  if (body && body.name && SYNC_ON.has(path)) scheduleSync(body.name);       // saved edits follow to your account
   return j;
 }
+const SYNC_ON = new Set(['/api/save', '/api/transcript', '/api/notes']);
 const media = p => `${BASE}/media?t=${encodeURIComponent(TOKEN)}&p=${encodeURIComponent(p)}`;
 
 /* website only: find studio.py on this device (it takes the first free port from 8765) */
@@ -418,6 +420,177 @@ async function connectHelper() {             // keeps looking until the studio a
     $('#main').replaceChildren(viewConnect(tries));
     await new Promise(res => { CONNECT.wake = res; setTimeout(res, 3000); });
   }
+}
+
+/* ---- your account (website only): Google sign-in, and a copy of each interview / presentation project's edit,
+   transcript and notes, so it opens on every device you sign in on. Footage and renders stay on each device; a
+   project that arrives from another device finds this device's copy of its files by name + size, or asks once. */
+const ACC = { configured: false, user: null, cloud: null };      // cloud: [{name, kind, size, updated_at, device}]
+const SYNCABLE = k => k === 'interview' || k === 'presentation';
+const whenIso = s => { const d = new Date(s); return isNaN(d) ? '–' : d.toLocaleDateString('en-SG', { day: '2-digit', month: 'short' }) + ' ' + d.toTimeString().slice(0, 5); };
+async function cloudFetch(path, init = {}) {
+  const r = await fetch(path, { credentials: 'same-origin', ...init, headers: { 'Content-Type': 'application/json', ...(init.headers || {}) } });
+  if (r.status === 401) { ACC.user = null; renderAccount(); }
+  return r;
+}
+async function cloudJson(path, init) {
+  const r = await cloudFetch(path, init);
+  let j; try { j = await r.json(); } catch (e) { j = { error: `Bad response (${r.status})` }; }
+  if (!r.ok) throw Object.assign(new Error(j.error || `Request failed (${r.status})`), { status: r.status });
+  return j;
+}
+async function loadAccount() {
+  if (!HOSTED) return;
+  try { const me = await (await fetch('/auth/me', { credentials: 'same-origin' })).json(); ACC.configured = !!me.configured; ACC.user = me.user || null; } catch (e) {}
+  if (new URLSearchParams(location.search).get('signin') === 'failed') {
+    flash('warning', 'Sign-in did not finish', 'Try again. If it keeps failing, Google sign-in may not be set up on this site yet.');
+    history.replaceState(null, '', location.pathname + location.hash);
+  }
+  renderAccount();
+  if (ACC.user) await refreshCloud();
+}
+async function refreshCloud() { try { ACC.cloud = (await cloudJson('/cloud/projects')).projects; } catch (e) { ACC.cloud = null; } }
+function renderAccount() {
+  const slot = $('#account'); if (!slot) return;
+  if (!HOSTED || !ACC.configured) { slot.replaceChildren(); return; }
+  slot.replaceChildren(ACC.user
+    ? h('span', { class: 'row', style: 'gap:8px' },
+        h('span', { class: 'mono-sm muted', title: 'Projects you keep in your account open on every device you sign in on' }, ACC.user.email),
+        h('a', { class: 'btn btn--ghost btn--sm', href: '/auth/logout' }, 'Sign out'))
+    : h('a', { class: 'btn btn--sm', href: '/auth/login?next=' + encodeURIComponent(location.hash), title: 'See your projects on every device' }, 'Sign in with Google'));
+}
+function syncState(local, c) {     // local: /api/bundle result (or null), c: the account's row (or undefined)
+  if (!local) return c ? 'cloud-only' : 'none';
+  const rec = ACC.user ? (local.sync || {})[ACC.user.email] : null;
+  if (!c) return rec ? 'removed' : 'local-only';
+  if (!rec) return 'unlinked';
+  const mine = local.hash !== rec.hash, theirs = c.updated_at !== rec.updated_at;
+  return mine && theirs ? 'conflict' : mine ? 'push' : theirs ? 'pull' : 'same';
+}
+async function pushProject(name, force) {
+  const local = await api('/api/bundle?name=' + encodeURIComponent(name));
+  const rec = (local.sync || {})[ACC.user.email];
+  const q = new URLSearchParams({ kind: local.bundle.kind, device: (HELPER && HELPER.device) || '', base: force ? 'force' : (rec ? rec.updated_at : '') });
+  const r = await cloudJson(`/cloud/projects/${encodeURIComponent(name)}?${q}`, { method: 'PUT', body: JSON.stringify(local.bundle) });
+  await api('/api/synced', { name, account: ACC.user.email, updated_at: r.updated_at, hash: local.hash });
+  return r;
+}
+async function pullProject(name) {
+  const r = await cloudFetch(`/cloud/projects/${encodeURIComponent(name)}`);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Download failed (${r.status})`);
+  const bundle = JSON.parse(await r.text());
+  return api('/api/bundle', { bundle, account: ACC.user.email, updated_at: r.headers.get('X-Updated-At') });
+}
+const missingNote = m => m && m.length ? ` ${m.length} file${m.length > 1 ? 's' : ''} it uses ${m.length > 1 ? 'are' : 'is'} not on this device yet: open it and use Find files.` : '';
+let syncTimer = null;
+function scheduleSync(name) {      // after a save: only projects you keep in your account
+  if (!HOSTED || !ACC.user || !(ACC.cloud || []).some(c => c.name === name)) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(async () => {
+    try { await pushProject(name); await refreshCloud(); setSaveState('Saved and synced ' + new Date().toTimeString().slice(0, 5)); }
+    catch (e) {
+      if (e.status === 409) flash('warning', 'Changed on another device too', `"${name}" was saved on another device since this one last synced. Open Projects to choose which version to keep.`);
+      else setSaveState('Saved here; not synced (' + e.message + ')');
+    }
+  }, 4000);
+}
+async function checkOnOpen(name) { // opening a project: bring in a newer copy from your account if nothing changed here
+  if (!HOSTED || !ACC.user) return;
+  try {
+    await refreshCloud();
+    const c = (ACC.cloud || []).find(x => x.name === name); if (!c) return;
+    const local = await api('/api/bundle?name=' + encodeURIComponent(name));
+    const st = syncState(local, c);
+    if (st === 'pull' && !saving && undo.length === 0 && S.P && S.P.name === name) {
+      const r = await pullProject(name);
+      flash('info', 'Updated from your account', `Saved on ${c.device || 'another device'} at ${whenIso(c.updated_at)}.` + missingNote(r.missing));
+      await reloadProject();
+    } else if (st === 'conflict' || st === 'unlinked') {
+      flash('warning', 'Two versions of this project', 'It was changed here and in your account. Open Projects to choose which version to keep.');
+    } else if (st === 'push') scheduleSync(name);
+  } catch (e) {}
+}
+const SYNC_LABEL = { 'local-only': 'Only on this device', 'cloud-only': 'Only in your account', same: 'Up to date', push: 'Newer here',
+  pull: 'Newer in your account', conflict: 'Changed in both places', unlinked: 'In both, never synced here', removed: 'Removed from your account' };
+function accountPanel() {
+  if (!HOSTED || !ACC.configured) return null;
+  const sec = h('section', { class: 'panel col', style: 'padding:0' },
+    h('h2', { class: 'panel__title', style: 'padding: var(--space-4) var(--space-4) 0' }, 'Your account'));
+  if (!ACC.user) {
+    sec.append(h('div', { class: 'col', style: 'padding: 0 var(--space-4) var(--space-4)' },
+      h('span', { class: 'body-sm' }, 'Sign in with Google to open your interview and presentation projects on every device. Only the edit, the transcript and your notes go to your account; footage and renders stay on each device.'),
+      h('div', { class: 'row' }, h('a', { class: 'btn btn--primary', href: '/auth/login?next=%23projects' }, 'Sign in with Google'))));
+    return sec;
+  }
+  const body = h('div', { class: 'empty body-sm' }, 'Checking your account');
+  sec.append(body);
+  fillAccountPanel(body);
+  return sec;
+}
+async function fillAccountPanel(body) {
+  await refreshCloud();
+  if (!ACC.cloud) { body.replaceChildren(alertBox('warning', 'Could not reach your account', 'Check the connection and reload the page.')); return; }
+  const local = S.state.projects.filter(p => SYNCABLE(p.kind));
+  const names = [...new Set([...local.map(p => p.name), ...ACC.cloud.map(c => c.name)])].sort();
+  const rows = await Promise.all(names.map(async n => {
+    let lb = null;
+    if (local.some(p => p.name === n)) { try { lb = await api('/api/bundle?name=' + encodeURIComponent(n)); } catch (e) {} }
+    const c = ACC.cloud.find(x => x.name === n);
+    return { n, c, st: syncState(lb, c) };
+  }));
+  const act = (label, fn, opts = {}) => h('button', { class: 'btn btn--sm' + (opts.primary ? ' btn--primary' : '') + (opts.danger ? ' btn--danger' : ''), type: 'button', onclick: async e => {
+    if (opts.confirm && !confirm(opts.confirm)) return;
+    e.target.disabled = true;
+    try { const msg = await fn(); if (msg) flash(msg[0], msg[1], msg[2]); }
+    catch (err) { fail(err); }
+    await refreshStateOnce(); render();
+  } }, label);
+  const up = (n, force) => async () => { await pushProject(n, force); return ['success', 'In your account', `"${n}" now opens on every device you sign in on.`]; };
+  const down = n => async () => { const r = await pullProject(n); return ['success', 'Downloaded to this device', `"${n}" is ready to open.` + missingNote(r.missing)]; };
+  const actions = ({ n, st }) => ({
+    'local-only': [act('Upload', up(n), { primary: true })],
+    'cloud-only': [act('Download', down(n), { primary: true })],
+    push: [act('Upload', up(n), { primary: true })],
+    pull: [act('Download', down(n), { primary: true })],
+    conflict: [act("Keep this device's", up(n, true), { confirm: `Replace the copy in your account with this device's version of "${n}"?` }),
+      act("Use the account's", down(n), { confirm: `Replace this device's version of "${n}" with the one in your account? (The old edit is kept in work/backup.)` })],
+    unlinked: [act("Keep this device's", up(n, true), { confirm: `Replace the copy in your account with this device's version of "${n}"?` }),
+      act("Use the account's", down(n), { confirm: `Replace this device's version of "${n}" with the one in your account? (The old edit is kept in work/backup.)` })],
+    removed: [act('Upload again', up(n, true))],
+    same: [],
+  }[st] || []).concat(ACC.cloud.some(c => c.name === n) ? [act('Remove from account', async () => {
+    await cloudJson(`/cloud/projects/${encodeURIComponent(n)}`, { method: 'DELETE' });
+    return ['info', 'Removed from your account', `"${n}" stays on any device that has it.`];
+  }, { danger: true, confirm: `Remove "${n}" from your account? Devices that have it keep their copy.` })] : []);
+  const onlyHere = rows.filter(r => r.st === 'local-only');
+  body.className = 'col';
+  body.replaceChildren(
+    h('span', { class: 'body-sm', style: 'padding: 0 var(--space-4)' }, `Signed in as ${ACC.user.email}. Projects in your account sync after each save. Footage stays on each device.`),
+    onlyHere.length > 1 ? h('div', { class: 'row', style: 'padding: 0 var(--space-4)' }, act(`Upload all ${onlyHere.length} projects only on this device`, async () => {
+      for (const r of onlyHere) await pushProject(r.n);
+      return ['success', 'In your account', `${onlyHere.length} projects uploaded.`];
+    })) : null,
+    rows.length ? h('table', { class: 'table' },
+      h('thead', {}, h('tr', {}, h('th', {}, 'Project'), h('th', {}, 'Status'), h('th', {}, 'Last saved to account'), h('th', {}, ''))),
+      h('tbody', {}, rows.map(r => h('tr', {},
+        h('td', {}, r.n),
+        h('td', {}, h('span', { class: 'badge' + ({ same: ' badge--success', conflict: ' badge--warning', unlinked: ' badge--warning' }[r.st] || '') }, SYNC_LABEL[r.st] || r.st)),
+        h('td', {}, r.c ? `${whenIso(r.c.updated_at)}${r.c.device ? ' · ' + r.c.device : ''}` : '–'),
+        h('td', {}, h('div', { class: 'row', style: 'gap:6px;justify-content:flex-end' }, actions(r)))))))
+      : h('div', { class: 'empty body-sm' }, 'No interview or presentation projects yet.'));
+}
+function missingBox(P) {
+  if (!P.missing || !P.missing.length) return null;
+  const n = P.missing.length;
+  return h('div', { class: 'col', style: 'gap:8px' },
+    alertBox('warning', `${n} file${n > 1 ? 's' : ''} this project uses ${n > 1 ? 'are' : 'is'} not on this device`,
+      P.missing.map(m => m.split(/[\\/]/).pop()).join(', ') + '\nPoint at the first one; any others in the same folder are found with it.'),
+    h('div', { class: 'row' }, h('button', { class: 'btn btn--primary', type: 'button', onclick: async () => {
+      const path = await pick('file', 'media', `Find ${P.missing[0].split(/[\\/]/).pop()}`);
+      if (!path) return;
+      try { const r = await api('/api/relink', { name: P.name, ref: P.missing[0], path }); flash(r.missing.length ? 'warning' : 'success', `Found ${r.fixed} file${r.fixed === 1 ? '' : 's'}`, r.missing.length ? `${r.missing.length} still missing.` : 'Everything this project uses is on this device.'); await reloadProject(); }
+      catch (e) { fail(e); }
+    } }, 'Find files')));
 }
 const fmtT = t => { if (t === null || t === undefined || isNaN(t)) return '–'; t = Math.max(0, t); const m = Math.floor(t / 60); return `${String(m).padStart(2, '0')}:${(t - m * 60).toFixed(1).padStart(4, '0')}`; };
 const fmtDur = t => { if (!t && t !== 0) return '–'; const m = Math.floor(t / 60), s = Math.round(t - m * 60); return `${m}:${String(s).padStart(2, '0')}`; };
@@ -636,6 +809,7 @@ async function openProject(name, view) {
     store.set('project-' + (view || S.P.kind), name);
     if (view) { S.view = view; store.set('view', view); renderNav(); }
     render();
+    if (SYNCABLE(S.P.kind)) checkOnOpen(name);
   } catch (e) { fail(e); }
 }
 async function reloadProject(full = true) {
@@ -735,7 +909,7 @@ function longEditor(fmt, meta) {
       h('button', { class: 'btn', type: 'button', onclick: () => { pause(); S.P = null; store.set('project-' + fmt, null); render(); } }, 'Close')));
   const warn = (plan.error ? [plan.error.join(' ')] : (plan.warnings || []));
   const body = { edit: tabEdit, graphics: tabGraphics, export: tabExport, notes: tabNotes }[S.tab](fmt);
-  return h('div', { class: 'page page--wide' }, head, flashSlot(),
+  return h('div', { class: 'page page--wide' }, head, flashSlot(), missingBox(P),
     warn.length ? alertBox('warning', plan.error ? 'The edit could not be planned' : 'Check before rendering', warn.join('\n')) : null,
     h('div', { class: 'tabs', role: 'tablist' }, tabs.map(([id, label]) => h('button', { class: 'tab', role: 'tab', type: 'button', 'aria-selected': S.tab === id ? 'true' : 'false', onclick: () => { pause(); S.tab = id; store.set('tab', id); render(); } }, label))),
     body);
@@ -2060,6 +2234,7 @@ function viewProjects() {
   return h('div', { class: 'page' },
     h('div', { class: 'page__head' }, h('div', { class: 'col' }, h('h1', { class: 'display-lg' }, 'Projects'), h('span', { class: 'body-sm' }, 'Everything under projects/. Polaroid recaps are written next to their photo folders.'))),
     flashSlot(),
+    accountPanel(),
     h('section', { class: 'panel', style: 'padding:0' }, list.length ? projectTable(list) : h('div', { class: 'empty' }, 'No projects yet.')));
 }
 let jobSel = null;
@@ -2150,6 +2325,7 @@ $('#theme').addEventListener('click', () => {
     await connectHelper();
     if (HELPER.version !== API_VERSION) flash('warning', HELPER.version < API_VERSION ? 'The studio on this device is older than the website' : 'This page is older than the studio on this device',
       HELPER.version < API_VERSION ? 'Update the thebooleanjulian-reels folder (Drive or git pull), then close and reopen studio.bat.' : 'Reload the page (Ctrl+F5).');
+    await loadAccount();
   }
   try { S.env = await api('/api/env'); } catch (e) {}
   await refreshStateOnce();

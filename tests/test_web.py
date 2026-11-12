@@ -30,7 +30,8 @@ def call(port, path, method='GET', headers=None, body=None):
 def test_website_pairs_and_gets_the_token(port):
     code, hd, data = call(port, '/api/pair', headers={'Origin': WEB})
     j = json.loads(data)
-    assert code == 200 and j == {'app': 'tbj-reels', 'token': studio.TOKEN, 'version': studio.API_VERSION}
+    assert code == 200 and j['app'] == 'tbj-reels' and j['token'] == studio.TOKEN and j['version'] == studio.API_VERSION
+    assert isinstance(j['device'], str)
     assert hd['Access-Control-Allow-Origin'] == WEB
 
 
